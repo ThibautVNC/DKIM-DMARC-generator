@@ -38,8 +38,10 @@ Outlook.com rejects mail from domains that aren't fully authenticated. In most c
 | **2 · Confirm error** | PowerShell commands to connect to the right tenant and confirm the error in the message trace |
 | **3 · DKIM values** | Command to generate the tenant's DKIM keys. Paste the output and the tool validates it against the domain |
 | **4 · DNS records** | The exact records to add (DKIM CNAMEs, DMARC, and SPF if it's missing) with copy buttons |
-| **5 · Email customer** | DNS host detected from the name servers, plus a ready-to-send email with the records |
+| **5 · Email customer** | DNS host detected from the name servers, registrar shown separately, plus a ready-to-send email with the records |
 | **6 · Finish** | Commands to enable DKIM and verify, a live DNS re-check, the confirmation email, the time entry and troubleshooting |
+
+Available in **English, Dutch and French** (emails included), with light and dark mode. Your choice is remembered.
 
 ## Requirements
 

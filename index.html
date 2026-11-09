@@ -3,24 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DKIM/DMARC Helper – Outlook/Hotmail rejections</title>
+<title>DKIM/DMARC Helper</title>
+<script>
+  // Apply saved theme before paint (no flash)
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("dkimtool.theme"); } catch (e) {}
+    if (!t) t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
 <style>
   :root {
-    --bg: #f6f7f9; --card: #fff; --text: #1d2330; --muted: #5f6b7a;
-    --border: #dde2e8; --accent: #1f5fbf; --accent-soft: #e8f0fc;
-    --warn: #9a5b00; --warn-soft: #fff4e0; --ok: #1b7a3d; --ok-soft: #e6f5ec;
-    --bad: #b42318; --bad-soft: #fdecea; --code: #0f1522; --code-text: #e6ebf2;
+    --bg: #f6f7f9; --card: #fff; --text: #1d2330; --muted: #5f6b7a; --border: #dde2e8;
+    --accent: #1f5fbf; --accent-soft: #e8f0fc; --warn: #9a5b00; --warn-soft: #fff4e0;
+    --ok: #1b7a3d; --ok-soft: #e6f5ec; --bad: #b42318; --bad-soft: #fdecea;
+    --code: #0f1522; --code-text: #e6ebf2; --th: #f1f3f6; --mail: #fbfcfd; --btn: #fff; --btn2: #eef0f3;
+  }
+  [data-theme="dark"] {
+    --bg: #0f131a; --card: #171c25; --text: #e4e8ee; --muted: #94a0b0; --border: #2a3240;
+    --accent: #6ea3ff; --accent-soft: #1c2a42; --warn: #f0b45a; --warn-soft: #3a2a12;
+    --ok: #5cc98a; --ok-soft: #14301f; --bad: #ff8a80; --bad-soft: #3a1717;
+    --code: #0a0d13; --code-text: #dbe2ec; --th: #1e2430; --mail: #131820; --btn: #1e2430; --btn2: #252c39;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
-  main { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
-  h1 { font-size: 24px; margin: 0 0 4px; }
+  main { max-width: 920px; margin: 0 auto; padding: 24px 20px 64px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  header > div:first-child { flex: 1; min-width: 0; }
+  @media (max-width: 640px) { header { flex-direction: column-reverse; } }
+  h1 { font-size: 24px; margin: 8px 0 4px; }
   .sub { color: var(--muted); margin: 0 0 22px; }
   code { font-family: ui-monospace, Consolas, monospace; font-size: .92em; }
+  a { color: var(--accent); }
 
-  /* Stepper */
+  .toolbar { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: var(--btn); color: var(--muted); padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .iconbtn { border: 1px solid var(--border); background: var(--btn); color: var(--text); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 15px; line-height: 1.2; }
+
   .stepper { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
-  .stepper button { flex: 1 1 0; min-width: 110px; border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 8px 10px; cursor: pointer; font: inherit; font-size: 13px; text-align: left; color: var(--muted); }
+  .stepper button { flex: 1 1 0; min-width: 110px; border: 1px solid var(--border); background: var(--btn); border-radius: 8px; padding: 8px 10px; cursor: pointer; font: inherit; font-size: 13px; text-align: left; color: var(--muted); }
   .stepper button b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
   .stepper button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .stepper button.done { color: var(--ok); }
@@ -29,23 +54,28 @@
   section.step { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 22px 24px; }
   section.step h2 { font-size: 18px; margin: 0 0 6px; }
   h3 { font-size: 14px; margin: 20px 0 6px; }
+  h4 { font-size: 13px; margin: 16px 0 4px; display: flex; align-items: center; gap: 8px; }
+  h4 .k { background: var(--accent-soft); color: var(--accent); border-radius: 5px; padding: 0 7px; font-size: 12px; }
   p { margin: 6px 0 10px; }
+  .muted { color: var(--muted); font-size: 13px; }
   label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-  input, textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: #fff; }
+  input, textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--btn); color: var(--text); }
   textarea { font-family: ui-monospace, Consolas, monospace; font-size: 13px; min-height: 120px; resize: vertical; }
   input:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
 
-  .block { position: relative; margin: 6px 0 12px; }
-  pre { margin: 0; background: var(--code); color: var(--code-text); padding: 14px 16px; border-radius: 8px; overflow-x: auto; font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
-  pre.mail { white-space: pre-wrap; background: #fbfcfd; color: var(--text); border: 1px solid var(--border); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 14px; }
+  .block { position: relative; margin: 4px 0 10px; }
+  pre { margin: 0; background: var(--code); color: var(--code-text); padding: 12px 90px 12px 16px; border-radius: 8px; overflow-x: auto; font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  pre.mail { white-space: pre-wrap; background: var(--mail); color: var(--text); border: 1px solid var(--border); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 14px; padding-right: 16px; }
   .copy { position: absolute; top: 8px; right: 8px; border: 0; border-radius: 5px; padding: 4px 10px; font-size: 12px; cursor: pointer; background: #ffffff22; color: #fff; }
   .block.light .copy { background: var(--accent-soft); color: var(--accent); }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0 12px; }
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { background: #f1f3f6; font-weight: 600; }
+  th { background: var(--th); font-weight: 600; }
   td code { word-break: break-all; }
-  td button { border: 1px solid var(--border); background: #fff; border-radius: 4px; font-size: 11px; padding: 2px 6px; cursor: pointer; margin-left: 6px; }
+  td button { border: 1px solid var(--border); background: var(--btn); color: var(--text); border-radius: 4px; font-size: 11px; padding: 2px 6px; cursor: pointer; margin-left: 6px; }
 
   .note { padding: 10px 14px; border-radius: 6px; font-size: 14px; margin: 8px 0 12px; }
   .note.warn { background: var(--warn-soft); color: var(--warn); }
@@ -55,123 +85,501 @@
   .pill.ok { background: var(--ok-soft); color: var(--ok); }
   .pill.bad { background: var(--bad-soft); color: var(--bad); }
   .pill.warn { background: var(--warn-soft); color: var(--warn); }
-  .pill.muted { background: #eef0f3; color: var(--muted); }
+  .pill.muted { background: var(--btn2); color: var(--muted); }
 
   .nav { display: flex; justify-content: space-between; margin-top: 18px; }
   .nav button { border: 0; border-radius: 6px; padding: 9px 18px; font: inherit; cursor: pointer; }
-  .nav .prev { background: #eef0f3; color: var(--text); }
+  .nav .prev { background: var(--btn2); color: var(--text); }
   .nav .next { background: var(--accent); color: #fff; }
   .nav button:disabled { opacity: .4; cursor: not-allowed; }
+  .smallbtn { border: 1px solid var(--border); background: var(--btn); color: var(--text); border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
   .hidden { display: none !important; }
-  a { color: var(--accent); }
   footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 24px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>DKIM/DMARC Helper</h1>
-  <p class="sub">For mail rejected by Outlook.com/Hotmail with <code>550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records</code>.</p>
+  <header>
+    <div>
+      <h1 data-t="title"></h1>
+      <p class="sub" data-t="subtitle"></p>
+    </div>
+    <div class="toolbar">
+      <div class="seg" id="langSeg">
+        <button data-lang="en">EN</button><button data-lang="nl">NL</button><button data-lang="fr">FR</button>
+      </div>
+      <button class="iconbtn" id="themeBtn" title="Dark / light"></button>
+    </div>
+  </header>
 
   <nav class="stepper" id="stepper"></nav>
 
   <!-- STEP 1 -->
   <section class="step" data-step="1">
-    <h2>1. Domain</h2>
-    <p>Enter the customer's domain. Its public DNS records are checked automatically.</p>
-    <label for="domain">Domain name</label>
+    <h2 data-t="s1_title"></h2>
+    <p data-t="s1_intro"></p>
+    <label for="domain" data-t="domain_label"></label>
     <input id="domain" placeholder="customer.com" autocomplete="off" autofocus>
     <div id="dnsCheck"></div>
   </section>
 
   <!-- STEP 2 -->
   <section class="step" data-step="2">
-    <h2>2. Confirm the error</h2>
-    <p>Connect to the <strong>correct tenant</strong> and confirm the rejection in the message trace.</p>
-    <div class="block"><pre id="cmdDiag"></pre><button class="copy">Copy</button></div>
-    <div class="note info">Expected in the failed event: <code>550 5.7.1 Message rejected: Message lacks SPF/DKIM/DMARC Auth Records</code>. A different code? See the troubleshooting table in step 6.</div>
+    <h2 data-t="s2_title"></h2>
+    <p data-t="s2_intro"></p>
+    <h4><span class="k">2a</span><span data-t="s2a"></span></h4>
+    <div class="block"><pre id="cmd2a"></pre><button class="copy"></button></div>
+    <p class="muted" data-t="s2a_hint"></p>
+    <h4><span class="k">2b</span><span data-t="s2b"></span></h4>
+    <div class="block"><pre id="cmd2b"></pre><button class="copy"></button></div>
+    <h4><span class="k">2c</span><span data-t="s2c"></span></h4>
+    <div class="block"><pre id="cmd2c"></pre><button class="copy"></button></div>
+    <h4><span class="k">2d</span><span data-t="s2d"></span></h4>
+    <div class="block"><pre id="cmd2d"></pre><button class="copy"></button></div>
+    <div class="note info" data-t="s2_expected"></div>
   </section>
 
   <!-- STEP 3 -->
   <section class="step" data-step="3">
-    <h2>3. Get the DKIM values</h2>
-    <p>The DKIM values depend on the tenant and can't be derived from the domain name. Run this and paste the output below.</p>
-    <div class="block"><pre id="cmdDkim"></pre><button class="copy">Copy</button></div>
-    <label for="dkim">Output of <code>Get-DkimSigningConfig</code></label>
+    <h2 data-t="s3_title"></h2>
+    <p data-t="s3_intro"></p>
+    <div class="block"><pre id="cmd3"></pre><button class="copy"></button></div>
+    <label for="dkim" data-t="dkim_label"></label>
     <textarea id="dkim" placeholder="Enabled        : False
 Status         : CnameMissing
 Selector1CNAME : selector1-customer-com._domainkey.customer.a-v1.dkim.mail.microsoft
 Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.microsoft"></textarea>
     <div id="dkimState"></div>
-    <p style="color:var(--muted);font-size:13px">"couldn't be found" or "Invalid domain name" means you're connected to the wrong tenant. Check with <code>Get-AcceptedDomain</code>.</p>
+    <p class="muted" data-t="s3_wrongtenant"></p>
   </section>
 
   <!-- STEP 4 -->
   <section class="step" data-step="4">
-    <h2>4. DNS records</h2>
-    <p>These records need to be added to the DNS zone.</p>
+    <h2 data-t="s4_title"></h2>
+    <p data-t="s4_intro"></p>
     <table id="recTable"></table>
     <div id="spfNote"></div>
-    <p style="color:var(--muted);font-size:13px">Always start DMARC at <code>p=none</code>. Other services sending on behalf of the domain, such as the website or a mailing tool, won't get blocked that way.</p>
+    <p class="muted" data-t="s4_dmarc"></p>
   </section>
 
   <!-- STEP 5 -->
   <section class="step" data-step="5">
-    <h2>5. DNS host &amp; email to the customer</h2>
-    <h3>Who manages the DNS?</h3>
+    <h2 data-t="s5_title"></h2>
     <div id="dnsHost"></div>
-    <label for="dnsprov">DNS host name for the email</label>
-    <input id="dnsprov" placeholder="e.g. Combell" autocomplete="off">
-    <p style="color:var(--muted);font-size:13px">If you manage the DNS yourself, add the records from step 4 and go straight to step 6.</p>
-    <h3>Email to the customer</h3>
-    <p>The customer forwards the part between the lines to their DNS host.</p>
-    <div class="block light"><pre class="mail" id="mailReq"></pre><button class="copy">Copy</button></div>
+    <div class="grid2">
+      <div>
+        <label for="dnsprov" data-t="dnshost_label"></label>
+        <input id="dnsprov" autocomplete="off">
+      </div>
+      <div>
+        <label for="registrar" data-t="registrar_label"></label>
+        <input id="registrar" autocomplete="off">
+      </div>
+    </div>
+    <p class="muted" data-t="s5_self"></p>
+    <h3 data-t="s5_mail_title"></h3>
+    <p data-t="s5_mail_intro"></p>
+    <div class="block light"><pre class="mail" id="mailReq"></pre><button class="copy"></button></div>
   </section>
 
   <!-- STEP 6 -->
   <section class="step" data-step="6">
-    <h2>6. Finish (after the customer confirms)</h2>
-    <p>Only enable DKIM once the records are visible. Before that, you'll get <code>CnameMissing</code>.</p>
-    <div class="block"><pre id="cmdFinal"></pre><button class="copy">Copy</button></div>
-    <button id="recheck" style="border:1px solid var(--border);background:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font:inherit;font-size:13px">Re-check public DNS now</button>
+    <h2 data-t="s6_title"></h2>
+    <p data-t="s6_intro"></p>
+    <h4><span class="k">6a</span><span data-t="s6a"></span></h4>
+    <div class="block"><pre id="cmd6a"></pre><button class="copy"></button></div>
+    <button id="recheck" class="smallbtn" data-t="recheck"></button>
     <div id="dnsRecheck"></div>
-    <p>Check the message source of a test email received on Hotmail/Outlook (<code>Authentication-Results</code>): <code>spf=pass</code>, <code>dkim=pass</code>, <code>dmarc=pass</code>.</p>
+    <h4><span class="k">6b</span><span data-t="s6b"></span></h4>
+    <div class="block"><pre id="cmd6b"></pre><button class="copy"></button></div>
+    <h4><span class="k">6c</span><span data-t="s6c"></span></h4>
+    <div class="block"><pre id="cmd6c"></pre><button class="copy"></button></div>
+    <p data-t="s6_headers"></p>
 
-    <h3>Confirmation email</h3>
-    <div class="block light"><pre class="mail" id="mailDone"></pre><button class="copy">Copy</button></div>
+    <h3 data-t="confirm_title"></h3>
+    <div class="block light"><pre class="mail" id="mailDone"></pre><button class="copy"></button></div>
 
-    <h3>Time entry</h3>
-    <div class="block light"><pre class="mail" id="timeEntry"></pre><button class="copy">Copy</button></div>
+    <h3 data-t="time_title"></h3>
+    <div class="block light"><pre class="mail" id="timeEntry"></pre><button class="copy"></button></div>
 
-    <h3>Troubleshooting</h3>
-    <table>
-      <tr><th>Symptom</th><th>Cause / fix</th></tr>
-      <tr><td><code>CnameMissing</code> when enabling</td><td>Records not propagated yet, or the name is wrong (some panels append the domain automatically, which gives <code>selector1._domainkey.domain.domain</code>). Wait 15–30 min.</td></tr>
-      <tr><td>DKIM <code>Valid</code> but still failing</td><td>Outlook.com may need some time to pick up DMARC. Check the message source after a few hours.</td></tr>
-      <tr><td><code>5.7.515</code></td><td>Authentication insufficient. Same fix as above.</td></tr>
-      <tr><td><code>S3150</code> / "on our block list"</td><td>Microsoft outbound IP is blocklisted. Request delisting via sender.office.com or open a Microsoft ticket.</td></tr>
-      <tr><td><code>5.1.10</code> / recipient not found</td><td>Recipient address doesn't exist. Check it for typos.</td></tr>
-      <tr><td><code>5.1.8</code> / restricted from sending</td><td>Account blocked. Release it in Defender (Restricted entities), reset the password and check MFA.</td></tr>
-    </table>
+    <h3 data-t="ts_title"></h3>
+    <table id="tsTable"></table>
   </section>
 
   <div class="nav">
-    <button class="prev" id="prev">← Back</button>
-    <button class="next" id="next">Next →</button>
+    <button class="prev" id="prev"></button>
+    <button class="next" id="next"></button>
   </div>
 
-  <footer>Everything runs locally in your browser. Public DNS lookups go through Google/Cloudflare DNS-over-HTTPS.</footer>
+  <footer data-t="footer"></footer>
 </main>
 
 <script>
 (function () {
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const STEPS = ["Domain", "Confirm error", "DKIM values", "DNS records", "Email customer", "Finish"];
+  const store = {
+    get: k => { try { return localStorage.getItem("dkimtool." + k); } catch (e) { return null; } },
+    set: (k, v) => { try { localStorage.setItem("dkimtool." + k, v); } catch (e) {} }
+  };
+
+  // ======================= TRANSLATIONS =======================
+  const T = {
+    en: {
+      title: "DKIM/DMARC Helper",
+      subtitle: "For mail rejected by Outlook.com/Hotmail with <code>550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records</code>.",
+      steps: ["Domain", "Confirm error", "DKIM values", "DNS records", "Email customer", "Finish"],
+      step: "Step", prev: "← Back", next: "Next →", copy: "Copy", copied: "Copied ✓", copySmall: "copy",
+      s1_title: "1. Domain", s1_intro: "Enter the customer's domain. Its public DNS records are checked automatically.", domain_label: "Domain name",
+      s2_title: "2. Confirm the error", s2_intro: "Run these one by one to confirm the rejection in the message trace.",
+      s2a: "Connect to the customer's tenant", s2a_hint: "Partner/GDAP access: use the second line with the tenant's onmicrosoft.com name.",
+      s2b: "Check that the domain is in this tenant", s2c: "Failed messages (last 7 days)", s2d: "Error detail of the first failed message",
+      s2_expected: "Expected in the failed event: <code>550 5.7.1 Message rejected: Message lacks SPF/DKIM/DMARC Auth Records</code>. A different code? See troubleshooting in step 6.",
+      s3_title: "3. Get the DKIM values", s3_intro: "DKIM values depend on the tenant and can't be derived from the domain name. This command creates the DKIM config if needed (no error if it already exists) and shows the values. Paste the output below.",
+      dkim_label: "Output of the command above",
+      s3_wrongtenant: "\"couldn't be found\" or \"Invalid domain name\" means you're connected to the wrong tenant (see 2b).",
+      s4_title: "4. DNS records", s4_intro: "These records need to be added to the DNS zone.",
+      s4_dmarc: "Always start DMARC at <code>p=none</code>, so other services sending on behalf of the domain (website, mailing tool) aren't blocked.",
+      s5_title: "5. DNS host & email to the customer",
+      dnshost_label: "DNS host (where the records are changed)", registrar_label: "Registrar (where the domain is registered)",
+      s5_self: "If you manage the DNS yourself, add the records from step 4 and go straight to step 6.",
+      s5_mail_title: "Email to the customer", s5_mail_intro: "The customer forwards the part between the lines to whoever manages their DNS.",
+      s6_title: "6. Finish (after the customer confirms)", s6_intro: "Only enable DKIM once the records are publicly visible. Before that you'll get <code>CnameMissing</code>.",
+      s6a: "Check that the records are public", s6b: "Enable DKIM", s6c: "Verify after a test email",
+      recheck: "Re-check public DNS now",
+      s6_headers: "In the message source of a test email received on Hotmail/Outlook (<code>Authentication-Results</code>) you should see <code>spf=pass</code>, <code>dkim=pass</code> and <code>dmarc=pass</code>.",
+      confirm_title: "Confirmation email", time_title: "Time entry", ts_title: "Troubleshooting",
+      ts: [["Symptom", "Cause / fix"],
+        ["<code>CnameMissing</code> when enabling", "Records not propagated yet, or the name is wrong (some panels append the domain, giving <code>selector1._domainkey.domain.domain</code>). Wait 15–30 min."],
+        ["DKIM <code>Valid</code> but still failing", "Outlook.com may need some time to pick up DMARC. Check the message source after a few hours."],
+        ["<code>5.7.515</code>", "Authentication insufficient. Same fix."],
+        ["<code>S3150</code> / \"on our block list\"", "Microsoft outbound IP is blocklisted. Request delisting via sender.office.com or open a Microsoft ticket."],
+        ["<code>5.1.10</code> / recipient not found", "Recipient address doesn't exist. Check for typos."],
+        ["<code>5.1.8</code> / restricted from sending", "Account blocked. Release it in Defender (Restricted entities), reset the password, check MFA."]],
+      footer: "Runs locally in your browser. Public DNS lookups via Google/Cloudflare DNS-over-HTTPS.",
+      checking: d => "Checking public DNS for <strong>" + d + "</strong>…",
+      lookup_failed: "Public DNS lookup failed (blocked by your network?). Use the PowerShell commands instead.",
+      th_check: "Check", th_status: "Status", th_value: "Current value",
+      p_m365: "Microsoft 365", p_m365o: "M365 + others", p_notm365: "Not M365", p_missing: "Missing", p_ok: "OK", p_okchk: "OK – check lookups", p_noinc: "No M365 include", p_present: "Present",
+      n_notm365: "The MX doesn't point to Microsoft 365. Mail for this domain probably isn't hosted in M365, so this procedure may not apply.",
+      n_othermx: "MX records of another provider are present alongside M365. Not the cause of this issue, but mail could end up there. Ask whether they're still used.",
+      n_spf: n => "SPF has " + n + " top-level lookups. Nested includes count too and the limit is 10. Verify the total on mxtoolbox.com (SPF Record Lookup); more than 10 gives <code>permerror</code>.",
+      n_published: "DKIM and DMARC are already published. If mail still fails, enable DKIM (step 6) and check the error code.",
+      dk_none: "No Selector1CNAME/Selector2CNAME found in the pasted text.",
+      dk_exists: "That's the \"already exists\" error from the old command: the config exists, which is fine. Copy the command above again (it handles this) and paste its output.",
+      dk_mismatch: (d, s) => "These values don't seem to belong to <strong>" + d + "</strong> (" + s + "). Wrong tenant or wrong domain?",
+      dk_ok: s => "DKIM values recognised" + (s ? " (current status: <strong>" + s + "</strong>)" : "") + ".",
+      next_hint: "Paste valid DKIM output first",
+      ph1: "<Selector1CNAME from step 3>", ph2: "<Selector2CNAME from step 3>",
+      r_type: "Type", r_name: "Name", r_value: "Value",
+      spf_noinc: "The existing SPF record lacks <code>include:spf.protection.outlook.com</code>. Add it to that same record (only one SPF record is allowed).",
+      spf_added: "No SPF record was found, so one has been added to the list.",
+      ph_warn: "DKIM values are placeholders. Complete step 3 first.",
+      h_ns: "Name servers", h_detected: "DNS host (from name servers)", h_unknown: "not recognised", h_notchecked: "Name servers not checked yet.",
+      h_explain: "The <strong>registrar</strong> is where the domain name is registered; it decides which name servers are used. The <strong>DNS host</strong> runs those name servers, and that's where the records must be added. They are often, but not always, the same company.",
+      h_lookup: "Look up the registrar:", h_dnsbe: "DNS Belgium (enter the domain there)", h_rdap_found: r => "Registrar found: <strong>" + r + "</strong>",
+      mail_req: (d, host, reg, recs) =>
+`Subject: Emails to Hotmail/Outlook addresses not delivered – DNS change required
+
+Hello,
+
+Emails from ${d} to Microsoft consumer addresses (@hotmail.com, @live.com, @outlook.com and similar) are currently being rejected. Microsoft has become stricter in checking whether an email really comes from the domain it claims to come from, and some required settings (DKIM and DMARC) are missing in the DNS of ${d}. Emails to other addresses are delivered normally.
+
+The DNS of your domain is not managed by us but hosted at ${host}${reg && reg !== host ? ` (the domain itself is registered via ${reg}, but the records must be added at ${host})` : ""}. Could you forward the text below to whoever manages your DNS at ${host}?
+
+---
+
+Hello,
+
+Please add the following records to the DNS zone of ${d}:
+
+${recs}
+
+Existing records can remain unchanged.
+
+Thank you in advance.
+
+---
+
+Please let us know once this is done. We will then enable the corresponding setting in Microsoft 365 and verify that everything works.
+
+Kind regards,
+
+[Your name]`,
+      mail_done: (d, host) =>
+`Subject: Resolved: emails to Hotmail/Outlook addresses
+
+Hello,
+
+Now that the required DNS records have been added at ${host}, we have enabled the corresponding setting in Microsoft 365. Emails from ${d} to Hotmail and Outlook addresses should be delivered normally again.
+
+Emails that were rejected in the past few days are not resent automatically. If needed, please send them again.
+
+If you still receive an error message or notice that emails are not arriving, please don't hesitate to contact us.
+
+Kind regards,
+
+[Your name]`,
+      time: (d, host) =>
+`${d} – Emails to Hotmail/Outlook addresses rejected
+- Message trace: failed messages to Microsoft consumer addresses
+- Error detail: 550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records
+- DNS check: DKIM and DMARC missing
+- DKIM config created in M365, CNAME values retrieved
+- DNS hosted at ${host}: customer emailed with records to forward
+- Follow-up: enable DKIM after confirmation and verify with a test email`,
+      host_fallback: "your DNS host", ex_keep: "Existing records can remain unchanged."
+    },
+
+    nl: {
+      title: "DKIM/DMARC-helper",
+      subtitle: "Voor mail die Outlook.com/Hotmail weigert met <code>550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records</code>.",
+      steps: ["Domein", "Fout bevestigen", "DKIM-waarden", "DNS-records", "Mail klant", "Afronden"],
+      step: "Stap", prev: "← Terug", next: "Volgende →", copy: "Kopieer", copied: "Gekopieerd ✓", copySmall: "kopieer",
+      s1_title: "1. Domein", s1_intro: "Vul het domein van de klant in. De publieke DNS-records worden automatisch gecontroleerd.", domain_label: "Domeinnaam",
+      s2_title: "2. Fout bevestigen", s2_intro: "Voer deze één voor één uit om de weigering in de message trace te bevestigen.",
+      s2a: "Verbinden met de tenant van de klant", s2a_hint: "Partner/GDAP-toegang: gebruik de tweede regel met de onmicrosoft.com-naam van de tenant.",
+      s2b: "Controleren of het domein in deze tenant zit", s2c: "Mislukte mails (laatste 7 dagen)", s2d: "Foutdetail van de eerste mislukte mail",
+      s2_expected: "Verwacht in het event Mislukt: <code>550 5.7.1 Message rejected: Message lacks SPF/DKIM/DMARC Auth Records</code>. Andere code? Zie troubleshooting in stap 6.",
+      s3_title: "3. DKIM-waarden ophalen", s3_intro: "De DKIM-waarden hangen af van de tenant en zijn niet af te leiden uit de domeinnaam. Dit commando maakt de DKIM-config aan indien nodig (geen fout als ze al bestaat) en toont de waarden. Plak de output hieronder.",
+      dkim_label: "Output van het commando hierboven",
+      s3_wrongtenant: "\"couldn't be found\" of \"Invalid domain name\" betekent dat je met de verkeerde tenant verbonden bent (zie 2b).",
+      s4_title: "4. DNS-records", s4_intro: "Deze records moeten toegevoegd worden in de DNS-zone.",
+      s4_dmarc: "Start DMARC altijd met <code>p=none</code>, zodat andere diensten die namens het domein mailen (website, mailingtool) niet geblokkeerd worden.",
+      s5_title: "5. DNS-beheerder & mail naar de klant",
+      dnshost_label: "DNS-host (waar de records aangepast worden)", registrar_label: "Registrar (waar het domein geregistreerd is)",
+      s5_self: "Beheer je de DNS zelf, maak dan de records uit stap 4 aan en ga meteen naar stap 6.",
+      s5_mail_title: "Mail naar de klant", s5_mail_intro: "De klant stuurt het deel tussen de lijnen door naar wie zijn DNS beheert.",
+      s6_title: "6. Afronden (na bevestiging van de klant)", s6_intro: "Schakel DKIM pas in als de records publiek zichtbaar zijn. Daarvoor krijg je <code>CnameMissing</code>.",
+      s6a: "Controleren of de records publiek zijn", s6b: "DKIM inschakelen", s6c: "Controleren na een testmail",
+      recheck: "Publieke DNS nu opnieuw controleren",
+      s6_headers: "In de berichtbron van een testmail ontvangen op Hotmail/Outlook (<code>Authentication-Results</code>) moet je <code>spf=pass</code>, <code>dkim=pass</code> en <code>dmarc=pass</code> zien.",
+      confirm_title: "Bevestigingsmail", time_title: "Time entry", ts_title: "Troubleshooting",
+      ts: [["Symptoom", "Oorzaak / oplossing"],
+        ["<code>CnameMissing</code> bij inschakelen", "Records nog niet gepropageerd, of de naam is fout (sommige panelen plakken het domein erachter: <code>selector1._domainkey.domein.domein</code>). Wacht 15–30 min."],
+        ["DKIM <code>Valid</code> maar faalt nog", "Outlook.com heeft soms even nodig om DMARC op te pikken. Controleer de berichtbron na een paar uur."],
+        ["<code>5.7.515</code>", "Authenticatie onvoldoende. Zelfde oplossing."],
+        ["<code>S3150</code> / \"on our block list\"", "Uitgaande IP van Microsoft staat op een blocklist. Delisting via sender.office.com of ticket bij Microsoft."],
+        ["<code>5.1.10</code> / recipient not found", "Ontvanger bestaat niet. Controleer op tikfouten."],
+        ["<code>5.1.8</code> / restricted from sending", "Account geblokkeerd. Vrijgeven in Defender (Restricted entities), wachtwoord resetten, MFA controleren."]],
+      footer: "Draait lokaal in je browser. Publieke DNS-lookups via Google/Cloudflare DNS-over-HTTPS.",
+      checking: d => "Publieke DNS controleren voor <strong>" + d + "</strong>…",
+      lookup_failed: "Publieke DNS-lookup mislukt (geblokkeerd door je netwerk?). Gebruik de PowerShell-commando's.",
+      th_check: "Controle", th_status: "Status", th_value: "Huidige waarde",
+      p_m365: "Microsoft 365", p_m365o: "M365 + andere", p_notm365: "Geen M365", p_missing: "Ontbreekt", p_ok: "OK", p_okchk: "OK – lookups nakijken", p_noinc: "Geen M365-include", p_present: "Aanwezig",
+      n_notm365: "De MX wijst niet naar Microsoft 365. De mail van dit domein draait waarschijnlijk niet op M365; deze procedure is dan mogelijk niet van toepassing.",
+      n_othermx: "Naast M365 staan er MX-records van een andere provider. Niet de oorzaak van dit probleem, maar mail kan daar terechtkomen. Vraag of die nog gebruikt worden.",
+      n_spf: n => "SPF heeft " + n + " lookups op het hoogste niveau. Geneste includes tellen ook mee en de limiet is 10. Controleer het totaal op mxtoolbox.com (SPF Record Lookup); boven 10 geeft <code>permerror</code>.",
+      n_published: "DKIM en DMARC zijn al gepubliceerd. Faalt de mail nog, schakel DKIM in (stap 6) en controleer de foutcode.",
+      dk_none: "Geen Selector1CNAME/Selector2CNAME gevonden in de geplakte tekst.",
+      dk_exists: "Dat is de \"already exists\"-fout van het oude commando: de config bestaat al, en dat is prima. Kopieer het commando hierboven opnieuw (dat vangt dit op) en plak de output.",
+      dk_mismatch: (d, s) => "Deze waarden lijken niet bij <strong>" + d + "</strong> te horen (" + s + "). Verkeerde tenant of verkeerd domein?",
+      dk_ok: s => "DKIM-waarden herkend" + (s ? " (huidige status: <strong>" + s + "</strong>)" : "") + ".",
+      next_hint: "Plak eerst geldige DKIM-output",
+      ph1: "<Selector1CNAME uit stap 3>", ph2: "<Selector2CNAME uit stap 3>",
+      r_type: "Type", r_name: "Naam", r_value: "Waarde",
+      spf_noinc: "Het bestaande SPF-record mist <code>include:spf.protection.outlook.com</code>. Voeg die toe aan datzelfde record (er mag maar één SPF-record zijn).",
+      spf_added: "Er is geen SPF-record gevonden, dus dat is aan de lijst toegevoegd.",
+      ph_warn: "De DKIM-waarden zijn placeholders. Voltooi eerst stap 3.",
+      h_ns: "Nameservers", h_detected: "DNS-host (volgens nameservers)", h_unknown: "niet herkend", h_notchecked: "Nameservers nog niet gecontroleerd.",
+      h_explain: "De <strong>registrar</strong> is waar de domeinnaam geregistreerd is; die bepaalt welke nameservers gebruikt worden. De <strong>DNS-host</strong> draait die nameservers, en daar moeten de records toegevoegd worden. Vaak is dat hetzelfde bedrijf, maar niet altijd.",
+      h_lookup: "Registrar opzoeken:", h_dnsbe: "DNS Belgium (domein daar invullen)", h_rdap_found: r => "Registrar gevonden: <strong>" + r + "</strong>",
+      mail_req: (d, host, reg, recs) =>
+`Onderwerp: Niet-afgeleverde e-mails naar Hotmail/Outlook-adressen – aanpassing DNS nodig
+
+Beste,
+
+E-mails van ${d} naar Microsoft-adressen (@hotmail.com, @live.be, @outlook.com, @outlook.be) worden momenteel geweigerd. Microsoft controleert strenger of een mail echt van uw domein komt, en daarvoor ontbreken nog enkele technische instellingen (DKIM en DMARC) in de DNS van ${d}. Mails naar andere adressen komen wel gewoon aan.
+
+De DNS van uw domein wordt niet door ons beheerd, maar staat bij ${host}${reg && reg !== host ? ` (de domeinnaam zelf is geregistreerd via ${reg}, maar de records moeten bij ${host} aangemaakt worden)` : ""}. Kan u onderstaande tekst doorsturen naar wie uw DNS bij ${host} beheert?
+
+---
+
+Beste,
+
+Graag volgende records toevoegen in de DNS-zone van ${d}:
+
+${recs}
+
+Bestaande records mogen ongewijzigd blijven.
+
+Alvast bedankt.
+
+---
+
+Laat ons weten wanneer dit in orde is, dan activeren wij de bijhorende instelling in Microsoft 365 en controleren we of alles correct werkt.
+
+Met vriendelijke groeten,
+
+[Uw naam]`,
+      mail_done: (d, host) =>
+`Onderwerp: Opgelost: e-mails naar Hotmail/Outlook-adressen
+
+Beste,
+
+Nu de nodige DNS-records bij ${host} zijn toegevoegd, hebben wij de bijhorende instelling in Microsoft 365 geactiveerd. E-mails van ${d} naar Hotmail- en Outlook-adressen zouden nu weer normaal moeten aankomen.
+
+Mails die de voorbije dagen geweigerd werden, worden niet automatisch opnieuw verstuurd. Indien nodig stuurt u die best opnieuw.
+
+Mocht u toch nog een foutmelding krijgen of merken dat mails niet aankomen, neem dan gerust contact met ons op.
+
+Met vriendelijke groeten,
+
+[Uw naam]`,
+      time: (d, host) =>
+`${d} – Mails naar Hotmail/Outlook-adressen geweigerd
+- Message trace: mislukte mails naar Microsoft-consumentenadressen
+- Foutdetail: 550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records
+- DNS-controle: DKIM en DMARC ontbreken
+- DKIM-config aangemaakt in M365, CNAME-waarden opgehaald
+- DNS gehost bij ${host}: klant gemaild met records om door te sturen
+- Opvolging: na bevestiging DKIM inschakelen en testmail controleren`,
+      host_fallback: "uw DNS-beheerder", ex_keep: "Bestaande records mogen ongewijzigd blijven."
+    },
+
+    fr: {
+      title: "Assistant DKIM/DMARC",
+      subtitle: "Pour les e-mails refusés par Outlook.com/Hotmail avec <code>550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records</code>.",
+      steps: ["Domaine", "Confirmer l'erreur", "Valeurs DKIM", "Enregistrements DNS", "E-mail client", "Finaliser"],
+      step: "Étape", prev: "← Retour", next: "Suivant →", copy: "Copier", copied: "Copié ✓", copySmall: "copier",
+      s1_title: "1. Domaine", s1_intro: "Saisissez le domaine du client. Ses enregistrements DNS publics sont vérifiés automatiquement.", domain_label: "Nom de domaine",
+      s2_title: "2. Confirmer l'erreur", s2_intro: "Exécutez-les une par une pour confirmer le refus dans le suivi des messages.",
+      s2a: "Se connecter au tenant du client", s2a_hint: "Accès partenaire/GDAP : utilisez la deuxième ligne avec le nom onmicrosoft.com du tenant.",
+      s2b: "Vérifier que le domaine est dans ce tenant", s2c: "Messages en échec (7 derniers jours)", s2d: "Détail de l'erreur du premier message en échec",
+      s2_expected: "Attendu dans l'événement en échec : <code>550 5.7.1 Message rejected: Message lacks SPF/DKIM/DMARC Auth Records</code>. Autre code ? Voir le dépannage à l'étape 6.",
+      s3_title: "3. Récupérer les valeurs DKIM", s3_intro: "Les valeurs DKIM dépendent du tenant et ne peuvent pas être déduites du nom de domaine. Cette commande crée la configuration DKIM si nécessaire (pas d'erreur si elle existe déjà) et affiche les valeurs. Collez le résultat ci-dessous.",
+      dkim_label: "Résultat de la commande ci-dessus",
+      s3_wrongtenant: "« couldn't be found » ou « Invalid domain name » signifie que vous êtes connecté au mauvais tenant (voir 2b).",
+      s4_title: "4. Enregistrements DNS", s4_intro: "Ces enregistrements doivent être ajoutés à la zone DNS.",
+      s4_dmarc: "Commencez toujours DMARC avec <code>p=none</code>, afin que les autres services envoyant au nom du domaine (site web, outil d'e-mailing) ne soient pas bloqués.",
+      s5_title: "5. Hébergeur DNS & e-mail au client",
+      dnshost_label: "Hébergeur DNS (où les enregistrements sont modifiés)", registrar_label: "Registrar (où le domaine est enregistré)",
+      s5_self: "Si vous gérez le DNS vous-même, ajoutez les enregistrements de l'étape 4 et passez directement à l'étape 6.",
+      s5_mail_title: "E-mail au client", s5_mail_intro: "Le client transfère la partie entre les lignes à la personne qui gère son DNS.",
+      s6_title: "6. Finaliser (après confirmation du client)", s6_intro: "N'activez DKIM qu'une fois les enregistrements visibles publiquement. Avant cela, vous obtiendrez <code>CnameMissing</code>.",
+      s6a: "Vérifier que les enregistrements sont publics", s6b: "Activer DKIM", s6c: "Vérifier après un e-mail de test",
+      recheck: "Revérifier le DNS public maintenant",
+      s6_headers: "Dans la source d'un e-mail de test reçu sur Hotmail/Outlook (<code>Authentication-Results</code>), vous devez voir <code>spf=pass</code>, <code>dkim=pass</code> et <code>dmarc=pass</code>.",
+      confirm_title: "E-mail de confirmation", time_title: "Prestation (time entry)", ts_title: "Dépannage",
+      ts: [["Symptôme", "Cause / solution"],
+        ["<code>CnameMissing</code> à l'activation", "Enregistrements pas encore propagés, ou nom incorrect (certains panneaux ajoutent le domaine : <code>selector1._domainkey.domaine.domaine</code>). Attendez 15–30 min."],
+        ["DKIM <code>Valid</code> mais toujours en échec", "Outlook.com peut avoir besoin d'un peu de temps pour prendre en compte DMARC. Vérifiez la source après quelques heures."],
+        ["<code>5.7.515</code>", "Authentification insuffisante. Même solution."],
+        ["<code>S3150</code> / « on our block list »", "L'IP sortante de Microsoft est sur liste noire. Demandez le retrait via sender.office.com ou ouvrez un ticket Microsoft."],
+        ["<code>5.1.10</code> / recipient not found", "Le destinataire n'existe pas. Vérifiez les fautes de frappe."],
+        ["<code>5.1.8</code> / restricted from sending", "Compte bloqué. Débloquez-le dans Defender (Restricted entities), réinitialisez le mot de passe, vérifiez la MFA."]],
+      footer: "Fonctionne localement dans votre navigateur. Requêtes DNS publiques via Google/Cloudflare DNS-over-HTTPS.",
+      checking: d => "Vérification du DNS public pour <strong>" + d + "</strong>…",
+      lookup_failed: "La requête DNS publique a échoué (bloquée par votre réseau ?). Utilisez les commandes PowerShell.",
+      th_check: "Contrôle", th_status: "Statut", th_value: "Valeur actuelle",
+      p_m365: "Microsoft 365", p_m365o: "M365 + autres", p_notm365: "Pas M365", p_missing: "Manquant", p_ok: "OK", p_okchk: "OK – vérifier lookups", p_noinc: "Pas d'include M365", p_present: "Présent",
+      n_notm365: "Le MX ne pointe pas vers Microsoft 365. La messagerie de ce domaine n'est probablement pas hébergée dans M365 ; cette procédure ne s'applique peut-être pas.",
+      n_othermx: "Des enregistrements MX d'un autre fournisseur sont présents à côté de M365. Ce n'est pas la cause du problème, mais des e-mails pourraient y arriver. Demandez s'ils sont encore utilisés.",
+      n_spf: n => "Le SPF contient " + n + " lookups au premier niveau. Les includes imbriqués comptent aussi et la limite est de 10. Vérifiez le total sur mxtoolbox.com (SPF Record Lookup) ; plus de 10 donne <code>permerror</code>.",
+      n_published: "DKIM et DMARC sont déjà publiés. Si les e-mails échouent encore, activez DKIM (étape 6) et vérifiez le code d'erreur.",
+      dk_none: "Aucun Selector1CNAME/Selector2CNAME trouvé dans le texte collé.",
+      dk_exists: "C'est l'erreur « already exists » de l'ancienne commande : la configuration existe déjà, ce qui est correct. Copiez à nouveau la commande ci-dessus (elle gère ce cas) et collez son résultat.",
+      dk_mismatch: (d, s) => "Ces valeurs ne semblent pas correspondre à <strong>" + d + "</strong> (" + s + "). Mauvais tenant ou mauvais domaine ?",
+      dk_ok: s => "Valeurs DKIM reconnues" + (s ? " (statut actuel : <strong>" + s + "</strong>)" : "") + ".",
+      next_hint: "Collez d'abord un résultat DKIM valide",
+      ph1: "<Selector1CNAME de l'étape 3>", ph2: "<Selector2CNAME de l'étape 3>",
+      r_type: "Type", r_name: "Nom", r_value: "Valeur",
+      spf_noinc: "L'enregistrement SPF existant ne contient pas <code>include:spf.protection.outlook.com</code>. Ajoutez-le à ce même enregistrement (un seul enregistrement SPF est autorisé).",
+      spf_added: "Aucun enregistrement SPF n'a été trouvé, il a donc été ajouté à la liste.",
+      ph_warn: "Les valeurs DKIM sont des espaces réservés. Terminez d'abord l'étape 3.",
+      h_ns: "Serveurs de noms", h_detected: "Hébergeur DNS (d'après les serveurs de noms)", h_unknown: "non reconnu", h_notchecked: "Serveurs de noms pas encore vérifiés.",
+      h_explain: "Le <strong>registrar</strong> est l'endroit où le nom de domaine est enregistré ; il détermine quels serveurs de noms sont utilisés. L'<strong>hébergeur DNS</strong> gère ces serveurs de noms, et c'est là que les enregistrements doivent être ajoutés. C'est souvent la même société, mais pas toujours.",
+      h_lookup: "Rechercher le registrar :", h_dnsbe: "DNS Belgium (y saisir le domaine)", h_rdap_found: r => "Registrar trouvé : <strong>" + r + "</strong>",
+      mail_req: (d, host, reg, recs) =>
+`Objet : E-mails vers des adresses Hotmail/Outlook non délivrés – modification DNS nécessaire
+
+Bonjour,
+
+Les e-mails envoyés depuis ${d} vers des adresses Microsoft (@hotmail.com, @live.be, @outlook.com, @outlook.be) sont actuellement refusés. Microsoft vérifie plus strictement qu'un e-mail provient réellement du domaine annoncé, et certains paramètres techniques (DKIM et DMARC) manquent encore dans le DNS de ${d}. Les e-mails vers d'autres adresses sont délivrés normalement.
+
+Le DNS de votre domaine n'est pas géré par nos soins, mais hébergé chez ${host}${reg && reg !== host ? ` (le nom de domaine est enregistré via ${reg}, mais les enregistrements doivent être ajoutés chez ${host})` : ""}. Pourriez-vous transférer le texte ci-dessous à la personne qui gère votre DNS chez ${host} ?
+
+---
+
+Bonjour,
+
+Merci d'ajouter les enregistrements suivants dans la zone DNS de ${d} :
+
+${recs}
+
+Les enregistrements existants peuvent rester inchangés.
+
+Merci d'avance.
+
+---
+
+Merci de nous prévenir une fois que c'est fait. Nous activerons alors le paramètre correspondant dans Microsoft 365 et vérifierons que tout fonctionne correctement.
+
+Cordialement,
+
+[Votre nom]`,
+      mail_done: (d, host) =>
+`Objet : Résolu : e-mails vers des adresses Hotmail/Outlook
+
+Bonjour,
+
+Maintenant que les enregistrements DNS nécessaires ont été ajoutés chez ${host}, nous avons activé le paramètre correspondant dans Microsoft 365. Les e-mails de ${d} vers des adresses Hotmail et Outlook devraient à nouveau être délivrés normalement.
+
+Les e-mails refusés ces derniers jours ne sont pas renvoyés automatiquement. Si nécessaire, veuillez les renvoyer.
+
+Si vous recevez encore un message d'erreur ou constatez que des e-mails n'arrivent pas, n'hésitez pas à nous contacter.
+
+Cordialement,
+
+[Votre nom]`,
+      time: (d, host) =>
+`${d} – E-mails vers Hotmail/Outlook refusés
+- Suivi des messages : échecs vers des adresses grand public Microsoft
+- Détail de l'erreur : 550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records
+- Contrôle DNS : DKIM et DMARC manquants
+- Configuration DKIM créée dans M365, valeurs CNAME récupérées
+- DNS hébergé chez ${host} : client contacté avec les enregistrements à transférer
+- Suivi : activer DKIM après confirmation et vérifier avec un e-mail de test`,
+      host_fallback: "votre hébergeur DNS", ex_keep: "Les enregistrements existants peuvent rester inchangés."
+    }
+  };
+
+  let lang = store.get("lang") || (/^fr/i.test(navigator.language) ? "fr" : /^nl/i.test(navigator.language) ? "nl" : "en");
+  if (!T[lang]) lang = "en";
+  const t = k => T[lang][k];
+
+  // ======================= THEME / LANGUAGE =======================
+  function applyTheme() {
+    const dark = document.documentElement.dataset.theme === "dark";
+    $("themeBtn").textContent = dark ? "☀️" : "🌙";
+  }
+  $("themeBtn").addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    store.set("theme", next);
+    applyTheme();
+  });
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-t]").forEach(el => { el.innerHTML = t(el.dataset.t); });
+    document.querySelectorAll("#langSeg button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
+    document.querySelectorAll(".copy").forEach(b => b.textContent = t("copy"));
+    $("prev").textContent = t("prev"); $("next").textContent = t("next");
+    $("tsTable").innerHTML = t("ts").map((r, i) => "<tr>" + r.map(c => i ? "<td>" + c + "</td>" : "<th>" + c + "</th>").join("") + "</tr>").join("");
+    if (dns.done) { $("dnsCheck").innerHTML = renderDnsTable(); if ($("dnsRecheck").innerHTML) $("dnsRecheck").innerHTML = renderDnsTable(); }
+    renderAll(); refreshNav();
+  }
+  $("langSeg").addEventListener("click", e => {
+    const b = e.target.closest("button[data-lang]"); if (!b) return;
+    lang = b.dataset.lang; store.set("lang", lang); applyLang();
+  });
+
+  // ======================= HELPERS =======================
   let cur = 1;
   let dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, done: false };
+  let rdapRegistrar = "";
   let checkToken = 0;
 
-  // ---------- helpers ----------
   function domain() {
     return $("domain").value.trim().toLowerCase()
       .replace(/^https?:\/\//, "").replace(/^www\./, "")
@@ -185,10 +593,10 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
   }
   function dkimOk() {
     const d = domain(), k = parseDkim($("dkim").value);
-    return k.s1 && k.s2 && k.s1.toLowerCase().startsWith("selector1-" + d.replace(/\./g, "-") + "._domainkey.");
+    return !!(k.s1 && k.s2 && k.s1.toLowerCase().startsWith("selector1-" + d.replace(/\./g, "-") + "._domainkey."));
   }
 
-  // ---------- DNS over HTTPS ----------
+  // ======================= DNS OVER HTTPS =======================
   async function doh(name, type) {
     const urls = [
       "https://dns.google/resolve?name=" + encodeURIComponent(name) + "&type=" + type,
@@ -200,253 +608,210 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
         if (!r.ok) continue;
         const j = await r.json();
         const typeNum = { NS: 2, CNAME: 5, MX: 15, TXT: 16 }[type];
-        return (j.Answer || []).filter(a => a.type === typeNum).map(a => a.data.replace(/^"|"$/g, "").replace(/"\s*"/g, "").replace(/\.$/, ""));
-      } catch (e) { /* try next */ }
+        return (j.Answer || []).filter(a => a.type === typeNum)
+          .map(a => a.data.replace(/^"|"$/g, "").replace(/"\s*"/g, "").replace(/\.$/, ""));
+      } catch (e) { /* next */ }
     }
-    return null; // lookup failed
+    return null;
+  }
+
+  // Best effort: RDAP registrar lookup (not available for every TLD, e.g. .be)
+  async function rdapLookup(d) {
+    try {
+      const r = await fetch("https://rdap.org/domain/" + encodeURIComponent(d), { headers: { accept: "application/rdap+json" } });
+      if (!r.ok) return "";
+      const j = await r.json();
+      const ent = (j.entities || []).find(e => (e.roles || []).includes("registrar"));
+      if (!ent) return "";
+      const fn = ((ent.vcardArray || [])[1] || []).find(v => v[0] === "fn");
+      return fn ? String(fn[3]) : "";
+    } catch (e) { return ""; }
   }
 
   const HOSTS = [
-    [/combell/, "Combell"], [/one\.com/, "one.com"], [/ovh\.net|anycast\.me|ovh\.com/, "OVHcloud"],
+    [/combell/, "Combell"], [/register\.be/, "Combell (Register.be)"], [/one\.com/, "one.com"], [/ovh\.net|anycast\.me|ovh\.com/, "OVHcloud"],
     [/your-server\.de|second-ns\.(com|de)|hetzner/, "Hetzner"], [/cloudflare\.com/, "Cloudflare"],
     [/azure-dns/, "Microsoft Azure DNS"], [/awsdns/, "Amazon Route 53"], [/domaincontrol\.com/, "GoDaddy"],
     [/transip/, "TransIP"], [/versio/, "Versio"], [/mijndomein/, "Mijndomein"], [/dns-parking\.com|hostinger/, "Hostinger"],
-    [/openprovider/, "Openprovider"], [/register\.be/, "Register.be"], [/nucleus/, "Nucleus"], [/level27/, "Level27"],
-    [/e2e\.be/, "e2e"], [/easyhost/, "Easyhost"], [/googledomains|google\.com/, "Google"], [/strato/, "Strato"],
-    [/ionos|ui-dns/, "IONOS"], [/vimexx/, "Vimexx"], [/hostnet/, "Hostnet"]
+    [/openprovider/, "Openprovider"], [/nucleus/, "Nucleus"], [/level27/, "Level27"], [/e2e\.be/, "e2e"],
+    [/easyhost/, "Easyhost"], [/googledomains/, "Google"], [/strato/, "Strato"], [/ionos|ui-dns/, "IONOS"],
+    [/vimexx/, "Vimexx"], [/hostnet/, "Hostnet"], [/akam\.net/, "Akamai"], [/dnsmadeeasy/, "DNS Made Easy"]
   ];
   const guessHost = ns => { for (const n of ns) for (const [re, name] of HOSTS) if (re.test(n.toLowerCase())) return name; return ""; };
 
   async function runDnsCheck(target) {
     const d = domain();
     const token = ++checkToken;
-    target.innerHTML = '<div class="note info">Checking public DNS for <strong>' + esc(d) + '</strong>…</div>';
-    const [ns, mx, txt, dmarc, dkim1] = await Promise.all([
-      doh(d, "NS"), doh(d, "MX"), doh(d, "TXT"), doh("_dmarc." + d, "TXT"), doh("selector1._domainkey." + d, "CNAME")
+    target.innerHTML = '<div class="note info">' + t("checking")(esc(d)) + '</div>';
+    const [ns, mx, txt, dmarc, dkim1, reg] = await Promise.all([
+      doh(d, "NS"), doh(d, "MX"), doh(d, "TXT"), doh("_dmarc." + d, "TXT"), doh("selector1._domainkey." + d, "CNAME"), rdapLookup(d)
     ]);
     if (token !== checkToken) return;
-    if (ns === null && mx === null) {
-      target.innerHTML = '<div class="note warn">Public DNS lookup failed (blocked by network?). Use the PowerShell commands in step 3 instead.</div>';
-      return;
-    }
+    if (ns === null && mx === null) { target.innerHTML = '<div class="note warn">' + t("lookup_failed") + '</div>'; return; }
     dns = {
       ns: ns || [], mx: mx || [],
-      spf: (txt || []).find(t => /^v=spf1/i.test(t)) || null,
-      dmarc: (dmarc || []).find(t => /^v=DMARC1/i.test(t)) || null,
-      dkim1: (dkim1 || [])[0] || null,
-      done: true
+      spf: (txt || []).find(x => /^v=spf1/i.test(x)) || null,
+      dmarc: (dmarc || []).find(x => /^v=DMARC1/i.test(x)) || null,
+      dkim1: (dkim1 || [])[0] || null, done: true
     };
+    rdapRegistrar = reg || "";
     if (!$("dnsprov").dataset.touched) $("dnsprov").value = guessHost(dns.ns);
+    if (!$("registrar").dataset.touched && rdapRegistrar) $("registrar").value = rdapRegistrar;
     target.innerHTML = renderDnsTable();
-    renderAll();
+    renderAll(); refreshNav();
+  }
+
+  function spfLookups(spf) {
+    return spf.split(/\s+/).filter(x => /^[+\-~?]?(include:|a$|a:|a\/|mx$|mx:|mx\/|exists:|redirect=|ptr)/i.test(x)).length;
   }
 
   function renderDnsTable() {
     const spf = dns.spf, outlook = spf && /include:spf\.protection\.outlook\.com/i.test(spf);
-    const lookups = spf ? spf.split(/\s+/).filter(t => /^[+\-~?]?(include:|a$|a:|a\/|mx$|mx:|mx\/|exists:|redirect=|ptr)/i.test(t)).length : 0;
+    const lookups = spf ? spfLookups(spf) : 0;
     const m365 = dns.mx.some(m => /mail\.protection\.outlook\.com/i.test(m));
     const otherMx = dns.mx.filter(m => !/mail\.protection\.outlook\.com/i.test(m));
-    const row = (name, pill, detail) => '<tr><td>' + name + '</td><td>' + pill + '</td><td><code>' + esc(detail || "—") + '</code></td></tr>';
-    let html = '<table><tr><th>Check</th><th>Status</th><th>Current value</th></tr>';
-    html += row("MX", m365 ? (otherMx.length ? '<span class="pill warn">M365 + others</span>' : '<span class="pill ok">Microsoft 365</span>') : '<span class="pill bad">Not M365</span>', dns.mx.join("\n"));
-    html += row("SPF", !spf ? '<span class="pill bad">Missing</span>' : outlook ? (lookups > 6 ? '<span class="pill warn">OK – check lookups</span>' : '<span class="pill ok">OK</span>') : '<span class="pill bad">No M365 include</span>', spf);
-    html += row("DMARC", dns.dmarc ? '<span class="pill ok">Present</span>' : '<span class="pill bad">Missing</span>', dns.dmarc);
-    html += row("DKIM (selector1)", dns.dkim1 ? '<span class="pill ok">Present</span>' : '<span class="pill bad">Missing</span>', dns.dkim1);
-    html += '</table>';
-    if (!m365) html += '<div class="note warn">The MX doesn\'t point to Microsoft 365. Mail for this domain probably isn\'t hosted in M365, so this procedure may not apply.</div>';
-    else if (otherMx.length) html += '<div class="note warn">MX records of another provider are present alongside M365. Not the cause of this issue, but mail could end up there. Ask whether they are still used.</div>';
-    if (spf && lookups > 6) html += '<div class="note warn">SPF has ' + lookups + ' top-level lookups. Nested includes count too, and the limit is 10. Verify the total on mxtoolbox.com (SPF Record Lookup). More than 10 gives <code>permerror</code>.</div>';
-    if (dns.dmarc && dns.dkim1) html += '<div class="note ok">DKIM and DMARC are already published. If mail still fails, enable DKIM in step 6 and check the error code.</div>';
-    return html;
+    const pill = (c, k) => '<span class="pill ' + c + '">' + t(k) + '</span>';
+    const row = (name, p, detail) => '<tr><td>' + name + '</td><td>' + p + '</td><td><code>' + esc(detail || "—") + '</code></td></tr>';
+    let h = '<table><tr><th>' + t("th_check") + '</th><th>' + t("th_status") + '</th><th>' + t("th_value") + '</th></tr>';
+    h += row("MX", m365 ? (otherMx.length ? pill("warn", "p_m365o") : pill("ok", "p_m365")) : pill("bad", "p_notm365"), dns.mx.join("  ·  "));
+    h += row("SPF", !spf ? pill("bad", "p_missing") : outlook ? (lookups > 6 ? pill("warn", "p_okchk") : pill("ok", "p_ok")) : pill("bad", "p_noinc"), spf);
+    h += row("DMARC", dns.dmarc ? pill("ok", "p_present") : pill("bad", "p_missing"), dns.dmarc);
+    h += row("DKIM (selector1)", dns.dkim1 ? pill("ok", "p_present") : pill("bad", "p_missing"), dns.dkim1);
+    h += '</table>';
+    if (!m365) h += '<div class="note warn">' + t("n_notm365") + '</div>';
+    else if (otherMx.length) h += '<div class="note warn">' + t("n_othermx") + '</div>';
+    if (spf && lookups > 6) h += '<div class="note warn">' + t("n_spf")(lookups) + '</div>';
+    if (dns.dmarc && dns.dkim1) h += '<div class="note ok">' + t("n_published") + '</div>';
+    return h;
   }
 
-  // ---------- render content ----------
+  // ======================= CONTENT =======================
   function renderAll() {
     const d = domain(); if (!validDomain(d)) return;
     const k = parseDkim($("dkim").value);
     const ok = dkimOk();
-    const s1 = ok ? k.s1 : "<Selector1CNAME from step 3>";
-    const s2 = ok ? k.s2 : "<Selector2CNAME from step 3>";
-    const prov = $("dnsprov").value.trim();
-    const provTxt = prov || "your DNS host";
+    const s1 = ok ? k.s1 : t("ph1");
+    const s2 = ok ? k.s2 : t("ph2");
+    const host = $("dnsprov").value.trim() || t("host_fallback");
+    const reg = $("registrar").value.trim();
 
-    $("cmdDiag").textContent =
-`Connect-ExchangeOnline   # or: -DelegatedOrganization <tenant>.onmicrosoft.com
-Get-AcceptedDomain | ft Name,DomainType,Default   # ${d} must be listed
-
-# Failed messages, last 7 days
-Get-MessageTraceV2 -SenderAddress *@${d} -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date) |
-  Where-Object Status -ne "Delivered" | ft Received,SenderAddress,RecipientAddress,Subject,Status
-
-# Error detail of the first failed message
-$m = Get-MessageTraceV2 -SenderAddress *@${d} -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date) |
+    // Step 2 (one block per action)
+    $("cmd2a").textContent =
+`Connect-ExchangeOnline
+Connect-ExchangeOnline -DelegatedOrganization <tenant>.onmicrosoft.com`;
+    $("cmd2b").textContent = `Get-AcceptedDomain | ft Name,DomainType,Default`;
+    $("cmd2c").textContent =
+`Get-MessageTraceV2 -SenderAddress *@${d} -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date) |
+  Where-Object Status -ne "Delivered" | ft Received,SenderAddress,RecipientAddress,Subject,Status`;
+    $("cmd2d").textContent =
+`$m = Get-MessageTraceV2 -SenderAddress *@${d} -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date) |
   Where-Object Status -eq "Failed" | Select-Object -First 1
 Get-MessageTraceDetailV2 -MessageTraceId $m.MessageTraceId -RecipientAddress $m.RecipientAddress |
   fl Date,Event,Detail`;
 
-    $("cmdDkim").textContent =
-`# Create the DKIM config ("already exists" is fine) and get the values
-New-DkimSigningConfig -DomainName ${d} -Enabled $false
+    // Step 3: create only if missing, never fails on "already exists"
+    $("cmd3").textContent =
+`try { New-DkimSigningConfig -DomainName ${d} -Enabled $false -ErrorAction Stop | Out-Null }
+catch { if ($_.Exception.Message -notmatch "already exists") { throw } }
 Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status,Selector1CNAME,Selector2CNAME`;
 
     const raw = $("dkim").value.trim();
     $("dkimState").innerHTML =
       !raw ? "" :
-      !(k.s1 && k.s2) ? '<div class="note warn">No Selector1CNAME/Selector2CNAME found in the pasted text.</div>' :
-      !ok ? '<div class="note warn">These values don\'t seem to belong to <strong>' + esc(d) + '</strong> (' + esc(k.s1) + '). Wrong tenant or wrong domain?</div>' :
-      '<div class="note ok">DKIM values recognised' + (k.status ? ' (current status: <strong>' + esc(k.status) + '</strong>)' : '') + '.</div>';
+      (!(k.s1 && k.s2) && /already exists/i.test(raw)) ? '<div class="note info">' + t("dk_exists") + '</div>' :
+      !(k.s1 && k.s2) ? '<div class="note warn">' + t("dk_none") + '</div>' :
+      !ok ? '<div class="note warn">' + t("dk_mismatch")(esc(d), esc(k.s1)) + '</div>' :
+      '<div class="note ok">' + t("dk_ok")(esc(k.status)) + '</div>';
 
-    const row = (t, n, v) => '<tr><td>' + t + '</td><td><code>' + esc(n) + '</code></td><td><code>' + esc(v) + '</code><button data-c="' + esc(v) + '">copy</button></td></tr>';
-    let rows = row("CNAME", "selector1._domainkey", s1) + row("CNAME", "selector2._domainkey", s2) + row("TXT", "_dmarc", "v=DMARC1; p=none");
+    // Step 4
     const spfMissing = dns.done && !dns.spf;
-    if (spfMissing) rows += row("TXT", "@", "v=spf1 include:spf.protection.outlook.com -all");
-    $("recTable").innerHTML = '<tr><th>Type</th><th>Name</th><th>Value</th></tr>' + rows;
+    const recs = [["CNAME", "selector1._domainkey", s1], ["CNAME", "selector2._domainkey", s2], ["TXT", "_dmarc", "v=DMARC1; p=none"]];
+    if (spfMissing) recs.push(["TXT", "@", "v=spf1 include:spf.protection.outlook.com -all"]);
+    $("recTable").innerHTML = '<tr><th>' + t("r_type") + '</th><th>' + t("r_name") + '</th><th>' + t("r_value") + '</th></tr>' +
+      recs.map(r => '<tr><td>' + r[0] + '</td><td><code>' + esc(r[1]) + '</code></td><td><code>' + esc(r[2]) + '</code><button data-c="' + esc(r[2]) + '">' + t("copySmall") + '</button></td></tr>').join("");
     $("spfNote").innerHTML =
-      !ok ? '<div class="note warn">DKIM values are placeholders. Complete step 3 first.</div>' :
-      dns.done && dns.spf && !/include:spf\.protection\.outlook\.com/i.test(dns.spf) ? '<div class="note warn">The existing SPF record lacks <code>include:spf.protection.outlook.com</code>. Add it to that same record (only one SPF record is allowed).</div>' :
-      spfMissing ? '<div class="note info">No SPF record was found, so an SPF record has been added to the list.</div>' : "";
+      !ok ? '<div class="note warn">' + t("ph_warn") + '</div>' :
+      dns.done && dns.spf && !/include:spf\.protection\.outlook\.com/i.test(dns.spf) ? '<div class="note warn">' + t("spf_noinc") + '</div>' :
+      spfMissing ? '<div class="note info">' + t("spf_added") + '</div>' : "";
+    const recText = recs.map(r => t("r_type") + ": " + r[0] + "\n" + t("r_name") + ": " + r[1] + "\n" + t("r_value") + ": " + r[2]).join("\n\n");
 
-    const recText =
-`Type: CNAME
-Name: selector1._domainkey
-Value: ${s1}
-
-Type: CNAME
-Name: selector2._domainkey
-Value: ${s2}
-
-Type: TXT
-Name: _dmarc
-Value: v=DMARC1; p=none` + (spfMissing ? `
-
-Type: TXT
-Name: @
-Value: v=spf1 include:spf.protection.outlook.com -all` : "");
-
-    // DNS host block (step 5)
-    const whoisUrl = /\.(be|vlaanderen|brussels)$/.test(d)
-      ? "https://www.dnsbelgium.be/en/whois"
-      : "https://lookup.icann.org/en/lookup?name=" + encodeURIComponent(d);
+    // Step 5: DNS host vs registrar
     const guessed = guessHost(dns.ns);
+    const isBe = /\.(be|vlaanderen|brussels)$/.test(d);
     $("dnsHost").innerHTML =
+      '<div class="note info">' + t("h_explain") + '</div>' +
       (dns.done
-        ? '<p>Name servers: <code>' + esc(dns.ns.join(", ") || "none found") + '</code><br>' +
-          (guessed ? 'Detected DNS host: <span class="pill ok">' + esc(guessed) + '</span>' : '<span class="pill muted">DNS host not recognised</span>') + '</p>'
-        : '<p class="pill muted">Name servers not checked yet</p>') +
-      '<p style="font-size:13px">Registrar / domain holder: <a href="' + whoisUrl + '" target="_blank" rel="noopener">look up ' + esc(d) + (/\.be$/.test(d) ? ' on DNS Belgium' : ' in WHOIS') + ' ↗</a>. The registrar is often, but not always, the DNS host. The name servers decide.</p>';
+        ? '<p>' + t("h_ns") + ': <code>' + esc(dns.ns.join(", ") || "—") + '</code><br>' + t("h_detected") + ': ' +
+          (guessed ? '<span class="pill ok">' + esc(guessed) + '</span>' : '<span class="pill muted">' + t("h_unknown") + '</span>') + '</p>'
+        : '<p class="muted">' + t("h_notchecked") + '</p>') +
+      (rdapRegistrar ? '<p>' + t("h_rdap_found")(esc(rdapRegistrar)) + '</p>' : "") +
+      '<p class="muted">' + t("h_lookup") + ' ' +
+        '<a href="https://www.whoxy.com/' + encodeURIComponent(d) + '" target="_blank" rel="noopener">whoxy.com ↗</a>' +
+        (isBe ? ' · <a href="https://www.dnsbelgium.be/en/whois" target="_blank" rel="noopener">' + t("h_dnsbe") + ' ↗</a>'
+              : ' · <a href="https://lookup.icann.org/en/lookup?name=' + encodeURIComponent(d) + '" target="_blank" rel="noopener">ICANN Lookup ↗</a>') +
+      '</p>';
 
-    $("mailReq").textContent =
-`Subject: Emails to Hotmail/Outlook addresses not delivered – DNS change required
+    $("mailReq").textContent = t("mail_req")(d, host, reg, recText);
 
-Hello,
-
-Emails from ${d} to Microsoft consumer addresses (@hotmail.com, @live.com, @outlook.com and similar) are currently being rejected. Microsoft has become stricter in checking whether an email really comes from the domain it claims to come from, and some required settings (DKIM and DMARC) are missing in the DNS of ${d}. Emails to other addresses are delivered normally.
-
-The DNS of your domain is not managed by us but by ${provTxt}, so we can't make this change ourselves. Could you forward the text below to your contact at ${provTxt}?
-
----
-
-Hello,
-
-Please add the following records to the DNS zone of ${d}:
-
-${recText}
-
-Existing records can remain unchanged.
-
-Thank you in advance.
-
----
-
-Please let us know once this is done. We will then enable the corresponding setting in Microsoft 365 and verify that everything works.
-
-Kind regards,
-
-[Your name]`;
-
-    $("cmdFinal").textContent =
-`# Records visible? (public DNS, avoids local cache)
-Resolve-DnsName selector1._domainkey.${d} -Type CNAME -Server 8.8.8.8
+    // Step 6
+    $("cmd6a").textContent =
+`Resolve-DnsName selector1._domainkey.${d} -Type CNAME -Server 8.8.8.8
 Resolve-DnsName selector2._domainkey.${d} -Type CNAME -Server 8.8.8.8
-Resolve-DnsName _dmarc.${d} -Type TXT -Server 8.8.8.8
-
-# Enable DKIM (CnameMissing = wait a bit longer)
-Set-DkimSigningConfig -Identity ${d} -Enabled $true
-Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status
-
-# After a test email: traffic to Microsoft consumer addresses today
-Get-MessageTraceV2 -SenderAddress *@${d} -StartDate (Get-Date).Date -EndDate (Get-Date) |
+Resolve-DnsName _dmarc.${d} -Type TXT -Server 8.8.8.8`;
+    $("cmd6b").textContent =
+`Set-DkimSigningConfig -Identity ${d} -Enabled $true
+Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
+    $("cmd6c").textContent =
+`Get-MessageTraceV2 -SenderAddress *@${d} -StartDate (Get-Date).Date -EndDate (Get-Date) |
   Where-Object RecipientAddress -match "@(hotmail|outlook|live|msn)\\." |
   ft Received,RecipientAddress,Subject,Status`;
-
-    $("mailDone").textContent =
-`Subject: Resolved: emails to Hotmail/Outlook addresses
-
-Hello,
-
-Now that ${provTxt} has added the required DNS records, we have enabled the corresponding setting in Microsoft 365. Emails from ${d} to Hotmail and Outlook addresses should be delivered normally again.
-
-Emails that were rejected in the past few days are not resent automatically. If needed, please send them again.
-
-If you still receive an error message or notice that emails are not arriving, please don't hesitate to contact us.
-
-Kind regards,
-
-[Your name]`;
-
-    $("timeEntry").textContent =
-`${d} – Emails to Hotmail/Outlook addresses rejected
-- Message trace: failed messages to Microsoft consumer addresses
-- Error detail: 550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records
-- DNS check: DKIM and DMARC missing
-- DKIM config created in M365, CNAME values retrieved
-- DNS managed by ${prov || "external party"}: customer emailed with records to forward
-- Follow-up: enable DKIM after confirmation and verify with a test email`;
+    $("mailDone").textContent = t("mail_done")(d, host);
+    $("timeEntry").textContent = t("time")(d, host);
   }
 
-  // ---------- wizard ----------
+  // ======================= WIZARD =======================
   function canGo(n) {
     if (n <= 1) return true;
     if (!validDomain(domain())) return false;
     if (n >= 4 && !dkimOk()) return false;
-    return true;
+    return n <= 6;
   }
   function renderStepper() {
-    $("stepper").innerHTML = STEPS.map((t, i) => {
-      const n = i + 1;
-      const cls = n === cur ? "on" : n < cur ? "done" : "";
-      return '<button class="' + cls + '" data-go="' + n + '"' + (canGo(n) ? "" : " disabled") + '><b>Step ' + n + '</b>' + t + '</button>';
+    $("stepper").innerHTML = t("steps").map((name, i) => {
+      const n = i + 1, cls = n === cur ? "on" : n < cur ? "done" : "";
+      return '<button class="' + cls + '" data-go="' + n + '"' + (canGo(n) ? "" : " disabled") + '><b>' + t("step") + " " + n + '</b>' + name + '</button>';
     }).join("");
+  }
+  function refreshNav() {
+    $("prev").disabled = cur === 1;
+    $("next").classList.toggle("hidden", cur === 6);
+    $("next").disabled = !canGo(cur + 1);
+    $("next").title = cur === 3 && !dkimOk() ? t("next_hint") : "";
+    renderStepper();
   }
   function show(n) {
     if (!canGo(n)) return;
     cur = n;
     document.querySelectorAll("section.step").forEach(s => s.classList.toggle("hidden", +s.dataset.step !== cur));
-    $("prev").disabled = cur === 1;
-    $("next").classList.toggle("hidden", cur === STEPS.length);
-    $("next").disabled = !canGo(cur + 1);
-    $("next").title = cur === 3 && !dkimOk() ? "Paste valid DKIM output first" : "";
-    renderStepper();
+    refreshNav();
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-  function refreshNav() {
-    $("next").disabled = !canGo(cur + 1);
-    $("next").title = cur === 3 && !dkimOk() ? "Paste valid DKIM output first" : "";
-    renderStepper();
   }
 
   let dnsTimer;
   $("domain").addEventListener("input", () => {
     dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, done: false };
-    $("dnsCheck").innerHTML = "";
-    if (!$("dnsprov").dataset.touched) $("dnsprov").value = "";
+    rdapRegistrar = "";
+    $("dnsCheck").innerHTML = ""; $("dnsRecheck").innerHTML = "";
+    ["dnsprov", "registrar"].forEach(id => { if (!$(id).dataset.touched) $(id).value = ""; });
     clearTimeout(dnsTimer);
     if (validDomain(domain())) dnsTimer = setTimeout(() => runDnsCheck($("dnsCheck")), 600);
     renderAll(); refreshNav();
   });
   $("domain").addEventListener("keydown", e => { if (e.key === "Enter" && canGo(2)) show(2); });
   $("dkim").addEventListener("input", () => { renderAll(); refreshNav(); });
-  $("dnsprov").addEventListener("input", () => { $("dnsprov").dataset.touched = $("dnsprov").value ? "1" : ""; renderAll(); });
+  ["dnsprov", "registrar"].forEach(id => $(id).addEventListener("input", () => {
+    $(id).dataset.touched = $(id).value ? "1" : ""; renderAll();
+  }));
   $("recheck").addEventListener("click", () => runDnsCheck($("dnsRecheck")));
   $("prev").addEventListener("click", () => show(cur - 1));
   $("next").addEventListener("click", () => show(cur + 1));
@@ -460,11 +825,13 @@ Kind regards,
     else if (b.dataset.c !== undefined) txt = b.dataset.c;
     if (txt === null) return;
     navigator.clipboard.writeText(txt).then(() => {
-      const o = b.textContent; b.textContent = "Copied ✓";
-      setTimeout(() => b.textContent = o, 1200);
+      const o = b.textContent; b.textContent = t("copied");
+      setTimeout(() => { b.textContent = o; }, 1200);
     });
   });
 
+  applyTheme();
+  applyLang();
   show(1);
 })();
 </script>
