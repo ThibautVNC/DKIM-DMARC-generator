@@ -55,8 +55,8 @@
   section.step { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 22px 24px; }
   section.step h2 { font-size: 18px; margin: 0 0 6px; }
   h3 { font-size: 14px; margin: 20px 0 6px; }
-  h4 { font-size: 13px; margin: 16px 0 4px; display: flex; align-items: center; gap: 8px; }
-  h4 .k { background: var(--accent-soft); color: var(--accent); border-radius: 5px; padding: 0 7px; font-size: 12px; }
+  h4 { font-size: 14px; font-weight: 600; margin: 22px 0 6px; display: flex; align-items: baseline; gap: 10px; }
+  h4 .k { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 700; min-width: 26px; }
   p { margin: 6px 0 10px; }
   .muted { color: var(--muted); font-size: 13px; }
   label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
@@ -134,14 +134,14 @@
   <section class="step" data-step="2">
     <h2 data-t="s2_title"></h2>
     <p data-t="s2_intro"></p>
-    <h4><span class="k">2a</span><span data-t="s2a"></span></h4>
+    <h4><span class="k">2.1</span><span data-t="s2a"></span></h4>
     <div class="block"><pre id="cmd2a"></pre><button class="copy"></button></div>
     <p class="muted" data-t="s2a_hint"></p>
-    <h4><span class="k">2b</span><span data-t="s2b"></span></h4>
+    <h4><span class="k">2.2</span><span data-t="s2b"></span></h4>
     <div class="block"><pre id="cmd2b"></pre><button class="copy"></button></div>
-    <h4><span class="k">2c</span><span data-t="s2c"></span></h4>
+    <h4><span class="k">2.3</span><span data-t="s2c"></span></h4>
     <div class="block"><pre id="cmd2c"></pre><button class="copy"></button></div>
-    <h4><span class="k">2d</span><span data-t="s2d"></span></h4>
+    <h4><span class="k">2.4</span><span data-t="s2d"></span></h4>
     <div class="block"><pre id="cmd2d"></pre><button class="copy"></button></div>
     <div class="note info" data-t="s2_expected"></div>
   </section>
@@ -195,13 +195,13 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
     <h2 id="s6h"></h2>
     <div id="selfNote"></div>
     <p data-t="s6_intro"></p>
-    <h4><span class="k">6a</span><span data-t="s6a"></span></h4>
+    <h4><span class="k">6.1</span><span data-t="s6a"></span></h4>
     <div class="block"><pre id="cmd6a"></pre><button class="copy"></button></div>
     <button id="recheck" class="smallbtn" data-t="recheck"></button>
     <div id="dnsRecheck"></div>
-    <h4><span class="k">6b</span><span data-t="s6b"></span></h4>
+    <h4><span class="k">6.2</span><span data-t="s6b"></span></h4>
     <div class="block"><pre id="cmd6b"></pre><button class="copy"></button></div>
-    <h4><span class="k">6c</span><span data-t="s6c"></span></h4>
+    <h4><span class="k">6.3</span><span data-t="s6c"></span></h4>
     <div class="block"><pre id="cmd6c"></pre><button class="copy"></button></div>
     <p data-t="s6_headers"></p>
 
@@ -255,7 +255,7 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
       s2_expected: "Expected in the failed event: <code>550 5.7.1 Message rejected: Message lacks SPF/DKIM/DMARC Auth Records</code>. A different code? See troubleshooting in step 6.",
       s3_title: "3. Get the DKIM values", s3_intro: "DKIM values depend on the tenant and can't be derived from the domain name. This command creates the DKIM config if needed (no error if it already exists) and shows the values. Paste the output below.",
       dkim_label: "Output of the command above",
-      s3_wrongtenant: "\"couldn't be found\" or \"Invalid domain name\" means you're connected to the wrong tenant (see 2b).",
+      s3_wrongtenant: "\"couldn't be found\" or \"Invalid domain name\" means you're connected to the wrong tenant (see 2.2).",
       s4_title: "4. DNS records", s4_intro: "These records need to be added to the DNS zone.",
       s4_dmarc: "Always start DMARC at <code>p=none</code>, so other services sending on behalf of the domain (website, mailing tool) aren't blocked.",
       s5_title: "5. DNS host & email to the customer",
@@ -392,7 +392,7 @@ Kind regards,
       s2_expected: "Verwacht in het event Mislukt: <code>550 5.7.1 Message rejected: Message lacks SPF/DKIM/DMARC Auth Records</code>. Andere code? Zie troubleshooting in stap 6.",
       s3_title: "3. DKIM-waarden ophalen", s3_intro: "De DKIM-waarden hangen af van de tenant en zijn niet af te leiden uit de domeinnaam. Dit commando maakt de DKIM-config aan indien nodig (geen fout als ze al bestaat) en toont de waarden. Plak de output hieronder.",
       dkim_label: "Output van het commando hierboven",
-      s3_wrongtenant: "\"couldn't be found\" of \"Invalid domain name\" betekent dat je met de verkeerde tenant verbonden bent (zie 2b).",
+      s3_wrongtenant: "\"couldn't be found\" of \"Invalid domain name\" betekent dat je met de verkeerde tenant verbonden bent (zie 2.2).",
       s4_title: "4. DNS-records", s4_intro: "Deze records moeten toegevoegd worden in de DNS-zone.",
       s4_dmarc: "Start DMARC altijd met <code>p=none</code>, zodat andere diensten die namens het domein mailen (website, mailingtool) niet geblokkeerd worden.",
       s5_title: "5. DNS-beheerder & mail naar de klant",
@@ -529,7 +529,7 @@ Met vriendelijke groeten,
       s2_expected: "Attendu dans l'événement en échec : <code>550 5.7.1 Message rejected: Message lacks SPF/DKIM/DMARC Auth Records</code>. Autre code ? Voir le dépannage à l'étape 6.",
       s3_title: "3. Récupérer les valeurs DKIM", s3_intro: "Les valeurs DKIM dépendent du tenant et ne peuvent pas être déduites du nom de domaine. Cette commande crée la configuration DKIM si nécessaire (pas d'erreur si elle existe déjà) et affiche les valeurs. Collez le résultat ci-dessous.",
       dkim_label: "Résultat de la commande ci-dessus",
-      s3_wrongtenant: "« couldn't be found » ou « Invalid domain name » signifie que vous êtes connecté au mauvais tenant (voir 2b).",
+      s3_wrongtenant: "« couldn't be found » ou « Invalid domain name » signifie que vous êtes connecté au mauvais tenant (voir 2.2).",
       s4_title: "4. Enregistrements DNS", s4_intro: "Ces enregistrements doivent être ajoutés à la zone DNS.",
       s4_dmarc: "Commencez toujours DMARC avec <code>p=none</code>, afin que les autres services envoyant au nom du domaine (site web, outil d'e-mailing) ne soient pas bloqués.",
       s5_title: "5. Hébergeur DNS & e-mail au client",
