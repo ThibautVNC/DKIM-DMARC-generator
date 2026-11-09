@@ -282,6 +282,7 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
       n_notm365: "The MX doesn't point to Microsoft 365. Mail for this domain probably isn't hosted in M365, so this procedure may not apply.",
       n_othermx: "MX records of another provider are present alongside M365. Not the cause of this issue, but mail could end up there. Ask whether they're still used.",
       n_spf: n => "SPF has " + n + " top-level lookups. Nested includes count too and the limit is 10. Verify the total on mxtoolbox.com (SPF Record Lookup); more than 10 gives <code>permerror</code>.",
+      n_sel2: "selector1 exists but selector2 is missing. Microsoft rotates between both keys, so DKIM will fail after the next rotation. Add selector2 as well.",
       n_published: "DKIM and DMARC are already published. If mail still fails, enable DKIM (step 6) and check the error code.",
       dk_none: "No Selector1CNAME/Selector2CNAME found in the pasted text.",
       dk_exists: "That's the \"already exists\" error from the old command: the config exists, which is fine. Copy the command above again (it handles this) and paste its output.",
@@ -419,6 +420,7 @@ Kind regards,
       n_notm365: "De MX wijst niet naar Microsoft 365. De mail van dit domein draait waarschijnlijk niet op M365; deze procedure is dan mogelijk niet van toepassing.",
       n_othermx: "Naast M365 staan er MX-records van een andere provider. Niet de oorzaak van dit probleem, maar mail kan daar terechtkomen. Vraag of die nog gebruikt worden.",
       n_spf: n => "SPF heeft " + n + " lookups op het hoogste niveau. Geneste includes tellen ook mee en de limiet is 10. Controleer het totaal op mxtoolbox.com (SPF Record Lookup); boven 10 geeft <code>permerror</code>.",
+      n_sel2: "selector1 bestaat, maar selector2 ontbreekt. Microsoft wisselt tussen beide sleutels, dus DKIM faalt na de volgende rotatie. Voeg ook selector2 toe.",
       n_published: "DKIM en DMARC zijn al gepubliceerd. Faalt de mail nog, schakel DKIM in (stap 6) en controleer de foutcode.",
       dk_none: "Geen Selector1CNAME/Selector2CNAME gevonden in de geplakte tekst.",
       dk_exists: "Dat is de \"already exists\"-fout van het oude commando: de config bestaat al, en dat is prima. Kopieer het commando hierboven opnieuw (dat vangt dit op) en plak de output.",
@@ -556,6 +558,7 @@ Met vriendelijke groeten,
       n_notm365: "Le MX ne pointe pas vers Microsoft 365. La messagerie de ce domaine n'est probablement pas hébergée dans M365 ; cette procédure ne s'applique peut-être pas.",
       n_othermx: "Des enregistrements MX d'un autre fournisseur sont présents à côté de M365. Ce n'est pas la cause du problème, mais des e-mails pourraient y arriver. Demandez s'ils sont encore utilisés.",
       n_spf: n => "Le SPF contient " + n + " lookups au premier niveau. Les includes imbriqués comptent aussi et la limite est de 10. Vérifiez le total sur mxtoolbox.com (SPF Record Lookup) ; plus de 10 donne <code>permerror</code>.",
+      n_sel2: "selector1 existe mais selector2 est manquant. Microsoft alterne entre les deux clés : DKIM échouera après la prochaine rotation. Ajoutez aussi selector2.",
       n_published: "DKIM et DMARC sont déjà publiés. Si les e-mails échouent encore, activez DKIM (étape 6) et vérifiez le code d'erreur.",
       dk_none: "Aucun Selector1CNAME/Selector2CNAME trouvé dans le texte collé.",
       dk_exists: "C'est l'erreur « already exists » de l'ancienne commande : la configuration existe déjà, ce qui est correct. Copiez à nouveau la commande ci-dessus (elle gère ce cas) et collez son résultat.",
@@ -688,7 +691,7 @@ Cordialement,
   // ======================= HELPERS =======================
   let cur = 1;
   let selfDns = false;
-  let dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, done: false };
+  let dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, dkim2: null, done: false };
   let rdapRegistrar = "";
   let checkToken = 0;
 
@@ -755,8 +758,9 @@ Cordialement,
     const d = domain();
     const token = ++checkToken;
     target.innerHTML = '<div class="note info">' + t("checking")(esc(d)) + '</div>';
-    const [ns, mx, txt, dmarc, dkim1, reg] = await Promise.all([
-      doh(d, "NS"), doh(d, "MX"), doh(d, "TXT"), doh("_dmarc." + d, "TXT"), doh("selector1._domainkey." + d, "CNAME"), rdapLookup(d)
+    const [ns, mx, txt, dmarc, dkim1, dkim2, reg] = await Promise.all([
+      doh(d, "NS"), doh(d, "MX"), doh(d, "TXT"), doh("_dmarc." + d, "TXT"),
+      doh("selector1._domainkey." + d, "CNAME"), doh("selector2._domainkey." + d, "CNAME"), rdapLookup(d)
     ]);
     if (token !== checkToken) return;
     if (ns === null && mx === null) { target.innerHTML = '<div class="note warn">' + t("lookup_failed") + '</div>'; return; }
@@ -764,7 +768,7 @@ Cordialement,
       ns: ns || [], mx: mx || [],
       spf: (txt || []).find(x => /^v=spf1/i.test(x)) || null,
       dmarc: (dmarc || []).find(x => /^v=DMARC1/i.test(x)) || null,
-      dkim1: (dkim1 || [])[0] || null, done: true
+      dkim1: (dkim1 || [])[0] || null, dkim2: (dkim2 || [])[0] || null, done: true
     };
     rdapRegistrar = reg || "";
     if (!$("dnsprov").dataset.touched) $("dnsprov").value = guessHost(dns.ns);
@@ -789,11 +793,13 @@ Cordialement,
     h += row("SPF", !spf ? pill("bad", "p_missing") : outlook ? (lookups > 6 ? pill("warn", "p_okchk") : pill("ok", "p_ok")) : pill("bad", "p_noinc"), spf);
     h += row("DMARC", dns.dmarc ? pill("ok", "p_present") : pill("bad", "p_missing"), dns.dmarc);
     h += row("DKIM (selector1)", dns.dkim1 ? pill("ok", "p_present") : pill("bad", "p_missing"), dns.dkim1);
+    h += row("DKIM (selector2)", dns.dkim2 ? pill("ok", "p_present") : pill("bad", "p_missing"), dns.dkim2);
     h += '</table>';
     if (!m365) h += '<div class="note warn">' + t("n_notm365") + '</div>';
     else if (otherMx.length) h += '<div class="note warn">' + t("n_othermx") + '</div>';
     if (spf && lookups > 6) h += '<div class="note warn">' + t("n_spf")(lookups) + '</div>';
-    if (dns.dmarc && dns.dkim1) h += '<div class="note ok">' + t("n_published") + '</div>';
+    if (dns.dkim1 && !dns.dkim2) h += '<div class="note warn">' + t("n_sel2") + '</div>';
+    if (dns.dmarc && dns.dkim1 && dns.dkim2) h += '<div class="note ok">' + t("n_published") + '</div>';
     return h;
   }
 
@@ -928,7 +934,7 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
 
   let dnsTimer;
   $("domain").addEventListener("input", () => {
-    dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, done: false };
+    dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, dkim2: null, done: false };
     rdapRegistrar = "";
     $("dnsCheck").innerHTML = ""; $("dnsRecheck").innerHTML = "";
     ["dnsprov", "registrar"].forEach(id => { if (!$(id).dataset.touched) $(id).value = ""; });
@@ -946,7 +952,7 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
   $("selfDns").addEventListener("click", () => { selfDns = true; show(6); });
   function resetAll() {
     ["domain", "dkim", "dnsprov", "registrar"].forEach(id => { $(id).value = ""; delete $(id).dataset.touched; });
-    dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, done: false };
+    dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, dkim2: null, done: false };
     rdapRegistrar = ""; selfDns = false; checkToken++;
     ["dnsCheck", "dnsRecheck", "dkimState", "selfNote"].forEach(id => { $(id).innerHTML = ""; });
     show(1);
