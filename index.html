@@ -96,6 +96,9 @@
   .navr { display: flex; gap: 8px; }
   .nav .alt { background: var(--btn); color: var(--accent); border: 1px solid var(--accent); }
   .stepper button.skipped { opacity: .5; text-decoration: line-through; }
+  .linkrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13px; }
+  .linkbtn { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); background: var(--btn); color: var(--accent); border-radius: 6px; padding: 5px 11px; text-decoration: none; font-size: 13px; }
+  .linkbtn:hover { border-color: var(--accent); }
   .smallbtn { border: 1px solid var(--border); background: var(--btn); color: var(--text); border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
   .hidden { display: none !important; }
   footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 24px; }
@@ -164,6 +167,7 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
     <table id="recTable"></table>
     <div id="spfNote"></div>
     <p class="muted" data-t="s4_dmarc"></p>
+    <div id="s4links" class="linkrow"></div>
   </section>
 
   <!-- STEP 5 -->
@@ -345,6 +349,7 @@ Kind regards,
 - Follow-up: enable DKIM after confirmation and verify with a test email`,
       s6_title_self: "6. Finish",
       restart: "↺ Start over", home_hint: "Start over",
+      s4_links: "Who manages the DNS?",
       self_btn: "We manage the DNS ✓",
       self_note: "<strong>Self-managed DNS:</strong> add the records from step 4 in the DNS panel first, then run the steps below. Step 5 is skipped.",
       mail_done_self: d =>
@@ -481,6 +486,7 @@ Met vriendelijke groeten,
 - Opvolging: na bevestiging DKIM inschakelen en testmail controleren`,
       s6_title_self: "6. Afronden",
       restart: "↺ Opnieuw beginnen", home_hint: "Opnieuw beginnen",
+      s4_links: "Wie beheert de DNS?",
       self_btn: "Zelf DNS-beheerder ✓",
       self_note: "<strong>DNS in eigen beheer:</strong> maak eerst de records uit stap 4 aan in het DNS-paneel en voer daarna de stappen hieronder uit. Stap 5 wordt overgeslagen.",
       mail_done_self: d =>
@@ -617,6 +623,7 @@ Cordialement,
 - Suivi : activer DKIM après confirmation et vérifier avec un e-mail de test`,
       s6_title_self: "6. Finaliser",
       restart: "↺ Recommencer", home_hint: "Recommencer",
+      s4_links: "Qui gère le DNS ?",
       self_btn: "Nous gérons le DNS ✓",
       self_note: "<strong>DNS géré par nos soins :</strong> ajoutez d'abord les enregistrements de l'étape 4 dans le panneau DNS, puis exécutez les étapes ci-dessous. L'étape 5 est ignorée.",
       mail_done_self: d =>
@@ -856,6 +863,12 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status,Selector1CNAME,Selector
         (isBe ? ' · <a href="https://www.dnsbelgium.be/en/whois/info/' + encodeURIComponent(d) + '/details" target="_blank" rel="noopener">' + t("h_dnsbe") + ' ↗</a>'
               : ' · <a href="https://lookup.icann.org/en/lookup?name=' + encodeURIComponent(d) + '" target="_blank" rel="noopener">ICANN Lookup ↗</a>') +
       '</p>';
+
+    $("s4links").innerHTML = '<span class="muted">' + t("s4_links") + '</span>' +
+      (guessed ? '<span class="pill ok">DNS: ' + esc(guessed) + '</span>' : "") +
+      '<a class="linkbtn" href="https://www.whoxy.com/' + encodeURIComponent(d) + '" target="_blank" rel="noopener">WHOIS ↗</a>' +
+      (isBe ? '<a class="linkbtn" href="https://www.dnsbelgium.be/en/whois/info/' + encodeURIComponent(d) + '/details" target="_blank" rel="noopener">DNS Belgium ↗</a>'
+            : '<a class="linkbtn" href="https://lookup.icann.org/en/lookup?name=' + encodeURIComponent(d) + '" target="_blank" rel="noopener">ICANN Lookup ↗</a>');
 
     $("mailReq").textContent = t("mail_req")(d, host, reg, recText);
 
