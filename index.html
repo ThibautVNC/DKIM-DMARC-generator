@@ -32,7 +32,8 @@
   header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
   header > div:first-child { flex: 1; min-width: 0; }
   @media (max-width: 640px) { header { flex-direction: column-reverse; } }
-  h1 { font-size: 24px; margin: 8px 0 4px; }
+  h1 { font-size: 24px; margin: 8px 0 4px; cursor: pointer; display: inline-block; }
+  h1:hover { color: var(--accent); }
   .sub { color: var(--muted); margin: 0 0 22px; }
   code { font-family: ui-monospace, Consolas, monospace; font-size: .92em; }
   a { color: var(--accent); }
@@ -92,6 +93,9 @@
   .nav .prev { background: var(--btn2); color: var(--text); }
   .nav .next { background: var(--accent); color: #fff; }
   .nav button:disabled { opacity: .4; cursor: not-allowed; }
+  .navr { display: flex; gap: 8px; }
+  .nav .alt { background: var(--btn); color: var(--accent); border: 1px solid var(--accent); }
+  .stepper button.skipped { opacity: .5; text-decoration: line-through; }
   .smallbtn { border: 1px solid var(--border); background: var(--btn); color: var(--text); border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
   .hidden { display: none !important; }
   footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 24px; }
@@ -101,7 +105,7 @@
 <main>
   <header>
     <div>
-      <h1 data-t="title"></h1>
+      <h1 data-t="title" id="homeTitle" role="link" tabindex="0"></h1>
       <p class="sub" data-t="subtitle"></p>
     </div>
     <div class="toolbar">
@@ -184,7 +188,8 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
 
   <!-- STEP 6 -->
   <section class="step" data-step="6">
-    <h2 data-t="s6_title"></h2>
+    <h2 id="s6h"></h2>
+    <div id="selfNote"></div>
     <p data-t="s6_intro"></p>
     <h4><span class="k">6a</span><span data-t="s6a"></span></h4>
     <div class="block"><pre id="cmd6a"></pre><button class="copy"></button></div>
@@ -208,7 +213,11 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
 
   <div class="nav">
     <button class="prev" id="prev"></button>
-    <button class="next" id="next"></button>
+    <div class="navr">
+      <button class="alt hidden" id="selfDns"></button>
+      <button class="next" id="next"></button>
+      <button class="next hidden" id="restart"></button>
+    </div>
   </div>
 
   <footer data-t="footer"></footer>
@@ -274,6 +283,7 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
       r_type: "Type", r_name: "Name", r_value: "Value",
       spf_noinc: "The existing SPF record lacks <code>include:spf.protection.outlook.com</code>. Add it to that same record (only one SPF record is allowed).",
       spf_added: "No SPF record was found, so one has been added to the list.",
+      dot_hint: "The CNAME values end with a dot so the panel doesn't append the domain. If the panel rejects the dot, leave it out: most panels then treat the value as complete.",
       ph_warn: "DKIM values are placeholders. Complete step 3 first.",
       h_ns: "Name servers", h_detected: "DNS host (from name servers)", h_unknown: "not recognised", h_notchecked: "Name servers not checked yet.",
       h_explain: "The <strong>registrar</strong> is where the domain name is registered; it decides which name servers are used. The <strong>DNS host</strong> runs those name servers, and that's where the records must be added. They are often, but not always, the same company.",
@@ -328,6 +338,35 @@ Kind regards,
 - DKIM config created in M365, CNAME values retrieved
 - DNS hosted at ${host}: customer emailed with records to forward
 - Follow-up: enable DKIM after confirmation and verify with a test email`,
+      s6_title_self: "6. Finish",
+      restart: "↺ Start over", home_hint: "Back to step 1",
+      self_btn: "We manage the DNS ✓",
+      self_note: "<strong>Self-managed DNS:</strong> add the records from step 4 in the DNS panel first, then run the steps below. Step 5 is skipped.",
+      mail_done_self: d =>
+`Subject: Resolved: emails to Hotmail/Outlook addresses
+
+Hello,
+
+Emails from ${d} to Microsoft consumer addresses (@hotmail.com, @live.com, @outlook.com and similar) were being rejected. Microsoft has become stricter in checking whether an email really comes from the domain it claims to come from, and some required settings (DKIM and DMARC) were missing for ${d}.
+
+We have added the required DNS records and enabled DKIM signing in your Microsoft 365 environment. Emails from ${d} to Hotmail and Outlook addresses should be delivered normally again.
+
+Emails that were rejected in the past few days are not resent automatically. If needed, please send them again.
+
+If you still receive an error message or notice that emails are not arriving, please don't hesitate to contact us.
+
+Kind regards,
+
+[Your name]`,
+      time_self: d =>
+`${d} – Emails to Hotmail/Outlook addresses rejected
+- Message trace: failed messages to Microsoft consumer addresses
+- Error detail: 550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records
+- DNS check: DKIM and DMARC missing
+- DKIM config created in M365, CNAME values retrieved
+- DKIM CNAME records and DMARC record added in DNS
+- DKIM enabled in M365 and verified
+- Customer informed`,
       host_fallback: "your DNS host", ex_keep: "Existing records can remain unchanged."
     },
 
@@ -380,6 +419,7 @@ Kind regards,
       r_type: "Type", r_name: "Naam", r_value: "Waarde",
       spf_noinc: "Het bestaande SPF-record mist <code>include:spf.protection.outlook.com</code>. Voeg die toe aan datzelfde record (er mag maar één SPF-record zijn).",
       spf_added: "Er is geen SPF-record gevonden, dus dat is aan de lijst toegevoegd.",
+      dot_hint: "De CNAME-waarden eindigen op een punt, zodat het DNS-paneel het domein er niet achter plakt. Weigert het paneel de punt, laat hem dan weg: de meeste panelen zien de waarde dan als volledig.",
       ph_warn: "De DKIM-waarden zijn placeholders. Voltooi eerst stap 3.",
       h_ns: "Nameservers", h_detected: "DNS-host (volgens nameservers)", h_unknown: "niet herkend", h_notchecked: "Nameservers nog niet gecontroleerd.",
       h_explain: "De <strong>registrar</strong> is waar de domeinnaam geregistreerd is; die bepaalt welke nameservers gebruikt worden. De <strong>DNS-host</strong> draait die nameservers, en daar moeten de records toegevoegd worden. Vaak is dat hetzelfde bedrijf, maar niet altijd.",
@@ -434,6 +474,35 @@ Met vriendelijke groeten,
 - DKIM-config aangemaakt in M365, CNAME-waarden opgehaald
 - DNS gehost bij ${host}: klant gemaild met records om door te sturen
 - Opvolging: na bevestiging DKIM inschakelen en testmail controleren`,
+      s6_title_self: "6. Afronden",
+      restart: "↺ Opnieuw beginnen", home_hint: "Terug naar stap 1",
+      self_btn: "Zelf DNS-beheerder ✓",
+      self_note: "<strong>DNS in eigen beheer:</strong> maak eerst de records uit stap 4 aan in het DNS-paneel en voer daarna de stappen hieronder uit. Stap 5 wordt overgeslagen.",
+      mail_done_self: d =>
+`Onderwerp: Opgelost: e-mails naar Hotmail/Outlook-adressen
+
+Beste,
+
+E-mails van ${d} naar Microsoft-adressen (@hotmail.com, @live.be, @outlook.com, @outlook.be) werden geweigerd. Microsoft controleert strenger of een mail echt van het opgegeven domein komt, en daarvoor ontbraken nog enkele technische instellingen (DKIM en DMARC) voor ${d}.
+
+Wij hebben de nodige DNS-records aangemaakt en DKIM geactiveerd in uw Microsoft 365-omgeving. E-mails van ${d} naar Hotmail- en Outlook-adressen zouden nu weer normaal moeten aankomen.
+
+Mails die de voorbije dagen geweigerd werden, worden niet automatisch opnieuw verstuurd. Indien nodig stuurt u die best opnieuw.
+
+Mocht u toch nog een foutmelding krijgen of merken dat mails niet aankomen, neem dan gerust contact met ons op.
+
+Met vriendelijke groeten,
+
+[Uw naam]`,
+      time_self: d =>
+`${d} – Mails naar Hotmail/Outlook-adressen geweigerd
+- Message trace: mislukte mails naar Microsoft-consumentenadressen
+- Foutdetail: 550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records
+- DNS-controle: DKIM en DMARC ontbreken
+- DKIM-config aangemaakt in M365, CNAME-waarden opgehaald
+- DKIM-CNAME-records en DMARC-record aangemaakt in DNS
+- DKIM ingeschakeld in M365 en gecontroleerd
+- Klant op de hoogte gebracht`,
       host_fallback: "uw DNS-beheerder", ex_keep: "Bestaande records mogen ongewijzigd blijven."
     },
 
@@ -486,6 +555,7 @@ Met vriendelijke groeten,
       r_type: "Type", r_name: "Nom", r_value: "Valeur",
       spf_noinc: "L'enregistrement SPF existant ne contient pas <code>include:spf.protection.outlook.com</code>. Ajoutez-le à ce même enregistrement (un seul enregistrement SPF est autorisé).",
       spf_added: "Aucun enregistrement SPF n'a été trouvé, il a donc été ajouté à la liste.",
+      dot_hint: "Les valeurs CNAME se terminent par un point pour que le panneau n'ajoute pas le domaine. Si le panneau refuse le point, retirez-le : la plupart des panneaux considèrent alors la valeur comme complète.",
       ph_warn: "Les valeurs DKIM sont des espaces réservés. Terminez d'abord l'étape 3.",
       h_ns: "Serveurs de noms", h_detected: "Hébergeur DNS (d'après les serveurs de noms)", h_unknown: "non reconnu", h_notchecked: "Serveurs de noms pas encore vérifiés.",
       h_explain: "Le <strong>registrar</strong> est l'endroit où le nom de domaine est enregistré ; il détermine quels serveurs de noms sont utilisés. L'<strong>hébergeur DNS</strong> gère ces serveurs de noms, et c'est là que les enregistrements doivent être ajoutés. C'est souvent la même société, mais pas toujours.",
@@ -540,6 +610,35 @@ Cordialement,
 - Configuration DKIM créée dans M365, valeurs CNAME récupérées
 - DNS hébergé chez ${host} : client contacté avec les enregistrements à transférer
 - Suivi : activer DKIM après confirmation et vérifier avec un e-mail de test`,
+      s6_title_self: "6. Finaliser",
+      restart: "↺ Recommencer", home_hint: "Retour à l'étape 1",
+      self_btn: "Nous gérons le DNS ✓",
+      self_note: "<strong>DNS géré par nos soins :</strong> ajoutez d'abord les enregistrements de l'étape 4 dans le panneau DNS, puis exécutez les étapes ci-dessous. L'étape 5 est ignorée.",
+      mail_done_self: d =>
+`Objet : Résolu : e-mails vers des adresses Hotmail/Outlook
+
+Bonjour,
+
+Les e-mails envoyés depuis ${d} vers des adresses Microsoft (@hotmail.com, @live.be, @outlook.com, @outlook.be) étaient refusés. Microsoft vérifie plus strictement qu'un e-mail provient réellement du domaine annoncé, et certains paramètres techniques (DKIM et DMARC) manquaient pour ${d}.
+
+Nous avons ajouté les enregistrements DNS nécessaires et activé DKIM dans votre environnement Microsoft 365. Les e-mails de ${d} vers des adresses Hotmail et Outlook devraient à nouveau être délivrés normalement.
+
+Les e-mails refusés ces derniers jours ne sont pas renvoyés automatiquement. Si nécessaire, veuillez les renvoyer.
+
+Si vous recevez encore un message d'erreur ou constatez que des e-mails n'arrivent pas, n'hésitez pas à nous contacter.
+
+Cordialement,
+
+[Votre nom]`,
+      time_self: d =>
+`${d} – E-mails vers Hotmail/Outlook refusés
+- Suivi des messages : échecs vers des adresses grand public Microsoft
+- Détail de l'erreur : 550 5.7.1 Message lacks SPF/DKIM/DMARC Auth Records
+- Contrôle DNS : DKIM et DMARC manquants
+- Configuration DKIM créée dans M365, valeurs CNAME récupérées
+- Enregistrements CNAME DKIM et DMARC ajoutés dans le DNS
+- DKIM activé dans M365 et vérifié
+- Client informé`,
       host_fallback: "votre hébergeur DNS", ex_keep: "Les enregistrements existants peuvent rester inchangés."
     }
   };
@@ -576,6 +675,7 @@ Cordialement,
 
   // ======================= HELPERS =======================
   let cur = 1;
+  let selfDns = false;
   let dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, done: false };
   let rdapRegistrar = "";
   let checkToken = 0;
@@ -725,14 +825,15 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status,Selector1CNAME,Selector
 
     // Step 4
     const spfMissing = dns.done && !dns.spf;
-    const recs = [["CNAME", "selector1._domainkey", s1], ["CNAME", "selector2._domainkey", s2], ["TXT", "_dmarc", "v=DMARC1; p=none"]];
+    const fq = v => ok && !v.endsWith(".") ? v + "." : v;   // trailing dot = fully qualified target
+    const recs = [["CNAME", "selector1._domainkey", fq(s1)], ["CNAME", "selector2._domainkey", fq(s2)], ["TXT", "_dmarc", "v=DMARC1; p=none"]];
     if (spfMissing) recs.push(["TXT", "@", "v=spf1 include:spf.protection.outlook.com -all"]);
     $("recTable").innerHTML = '<tr><th>' + t("r_type") + '</th><th>' + t("r_name") + '</th><th>' + t("r_value") + '</th></tr>' +
-      recs.map(r => '<tr><td>' + r[0] + '</td><td><code>' + esc(r[1]) + '</code></td><td><code>' + esc(r[2]) + '</code><button data-c="' + esc(r[2]) + '">' + t("copySmall") + '</button></td></tr>').join("");
-    $("spfNote").innerHTML =
+      recs.map(r => '<tr><td>' + r[0] + '</td><td><code>' + esc(r[1]) + '</code><button data-c="' + esc(r[1]) + '">' + t("copySmall") + '</button></td><td><code>' + esc(r[2]) + '</code><button data-c="' + esc(r[2]) + '">' + t("copySmall") + '</button></td></tr>').join("");
+    $("spfNote").innerHTML = (ok ? '<p class="muted">' + t("dot_hint") + '</p>' : "") + (
       !ok ? '<div class="note warn">' + t("ph_warn") + '</div>' :
       dns.done && dns.spf && !/include:spf\.protection\.outlook\.com/i.test(dns.spf) ? '<div class="note warn">' + t("spf_noinc") + '</div>' :
-      spfMissing ? '<div class="note info">' + t("spf_added") + '</div>' : "";
+      spfMissing ? '<div class="note info">' + t("spf_added") + '</div>' : "");
     const recText = recs.map(r => t("r_type") + ": " + r[0] + "\n" + t("r_name") + ": " + r[1] + "\n" + t("r_value") + ": " + r[2]).join("\n\n");
 
     // Step 5: DNS host vs registrar
@@ -765,8 +866,10 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
 `Get-MessageTraceV2 -SenderAddress *@${d} -StartDate (Get-Date).Date -EndDate (Get-Date) |
   Where-Object RecipientAddress -match "@(hotmail|outlook|live|msn)\\." |
   ft Received,RecipientAddress,Subject,Status`;
-    $("mailDone").textContent = t("mail_done")(d, host);
-    $("timeEntry").textContent = t("time")(d, host);
+    $("mailDone").textContent = selfDns ? t("mail_done_self")(d) : t("mail_done")(d, host);
+    $("timeEntry").textContent = selfDns ? t("time_self")(d) : t("time")(d, host);
+    $("s6h").textContent = selfDns ? t("s6_title_self") : t("s6_title");
+    $("selfNote").innerHTML = selfDns ? '<div class="note info">' + t("self_note") + '</div>' : "";
   }
 
   // ======================= WIZARD =======================
@@ -778,7 +881,7 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
   }
   function renderStepper() {
     $("stepper").innerHTML = t("steps").map((name, i) => {
-      const n = i + 1, cls = n === cur ? "on" : n < cur ? "done" : "";
+      const n = i + 1, cls = n === cur ? "on" : (selfDns && n === 5) ? "skipped" : n < cur ? "done" : "";
       return '<button class="' + cls + '" data-go="' + n + '"' + (canGo(n) ? "" : " disabled") + '><b>' + t("step") + " " + n + '</b>' + name + '</button>';
     }).join("");
   }
@@ -787,11 +890,19 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
     $("next").classList.toggle("hidden", cur === 6);
     $("next").disabled = !canGo(cur + 1);
     $("next").title = cur === 3 && !dkimOk() ? t("next_hint") : "";
+    $("selfDns").classList.toggle("hidden", cur !== 4);
+    $("restart").classList.toggle("hidden", cur !== 6);
+    $("restart").textContent = t("restart");
+    $("homeTitle").title = t("home_hint");
+    $("selfDns").disabled = !canGo(6);
+    $("selfDns").textContent = t("self_btn");
     renderStepper();
   }
   function show(n) {
     if (!canGo(n)) return;
+    if (n === 5 || n < 4) selfDns = false;
     cur = n;
+    renderAll();
     document.querySelectorAll("section.step").forEach(s => s.classList.toggle("hidden", +s.dataset.step !== cur));
     refreshNav();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -813,7 +924,18 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
     $(id).dataset.touched = $(id).value ? "1" : ""; renderAll();
   }));
   $("recheck").addEventListener("click", () => runDnsCheck($("dnsRecheck")));
-  $("prev").addEventListener("click", () => show(cur - 1));
+  $("prev").addEventListener("click", () => show(cur === 6 && selfDns ? 4 : cur - 1));
+  $("selfDns").addEventListener("click", () => { selfDns = true; show(6); });
+  $("homeTitle").addEventListener("click", () => show(1));
+  $("homeTitle").addEventListener("keydown", e => { if (e.key === "Enter") show(1); });
+  $("restart").addEventListener("click", () => {
+    ["domain", "dkim", "dnsprov", "registrar"].forEach(id => { $(id).value = ""; delete $(id).dataset.touched; });
+    dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, done: false };
+    rdapRegistrar = ""; selfDns = false; checkToken++;
+    ["dnsCheck", "dnsRecheck", "dkimState", "selfNote"].forEach(id => { $(id).innerHTML = ""; });
+    show(1);
+    $("domain").focus();
+  });
   $("next").addEventListener("click", () => show(cur + 1));
 
   document.addEventListener("click", e => {
