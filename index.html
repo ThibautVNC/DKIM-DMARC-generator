@@ -277,7 +277,7 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
       ph_warn: "DKIM values are placeholders. Complete step 3 first.",
       h_ns: "Name servers", h_detected: "DNS host (from name servers)", h_unknown: "not recognised", h_notchecked: "Name servers not checked yet.",
       h_explain: "The <strong>registrar</strong> is where the domain name is registered; it decides which name servers are used. The <strong>DNS host</strong> runs those name servers, and that's where the records must be added. They are often, but not always, the same company.",
-      h_lookup: "Look up the registrar:", h_dnsbe: "DNS Belgium (enter the domain there)", h_rdap_found: r => "Registrar found: <strong>" + r + "</strong>",
+      h_lookup: "Look up the registrar:", h_dnsbe: "DNS Belgium", h_rdap_found: r => "Registrar found: <strong>" + r + "</strong>",
       mail_req: (d, host, reg, recs) =>
 `Subject: Emails to Hotmail/Outlook addresses not delivered – DNS change required
 
@@ -383,7 +383,7 @@ Kind regards,
       ph_warn: "De DKIM-waarden zijn placeholders. Voltooi eerst stap 3.",
       h_ns: "Nameservers", h_detected: "DNS-host (volgens nameservers)", h_unknown: "niet herkend", h_notchecked: "Nameservers nog niet gecontroleerd.",
       h_explain: "De <strong>registrar</strong> is waar de domeinnaam geregistreerd is; die bepaalt welke nameservers gebruikt worden. De <strong>DNS-host</strong> draait die nameservers, en daar moeten de records toegevoegd worden. Vaak is dat hetzelfde bedrijf, maar niet altijd.",
-      h_lookup: "Registrar opzoeken:", h_dnsbe: "DNS Belgium (domein daar invullen)", h_rdap_found: r => "Registrar gevonden: <strong>" + r + "</strong>",
+      h_lookup: "Registrar opzoeken:", h_dnsbe: "DNS Belgium", h_rdap_found: r => "Registrar gevonden: <strong>" + r + "</strong>",
       mail_req: (d, host, reg, recs) =>
 `Onderwerp: Niet-afgeleverde e-mails naar Hotmail/Outlook-adressen – aanpassing DNS nodig
 
@@ -489,7 +489,7 @@ Met vriendelijke groeten,
       ph_warn: "Les valeurs DKIM sont des espaces réservés. Terminez d'abord l'étape 3.",
       h_ns: "Serveurs de noms", h_detected: "Hébergeur DNS (d'après les serveurs de noms)", h_unknown: "non reconnu", h_notchecked: "Serveurs de noms pas encore vérifiés.",
       h_explain: "Le <strong>registrar</strong> est l'endroit où le nom de domaine est enregistré ; il détermine quels serveurs de noms sont utilisés. L'<strong>hébergeur DNS</strong> gère ces serveurs de noms, et c'est là que les enregistrements doivent être ajoutés. C'est souvent la même société, mais pas toujours.",
-      h_lookup: "Rechercher le registrar :", h_dnsbe: "DNS Belgium (y saisir le domaine)", h_rdap_found: r => "Registrar trouvé : <strong>" + r + "</strong>",
+      h_lookup: "Rechercher le registrar :", h_dnsbe: "DNS Belgium", h_rdap_found: r => "Registrar trouvé : <strong>" + r + "</strong>",
       mail_req: (d, host, reg, recs) =>
 `Objet : E-mails vers des adresses Hotmail/Outlook non délivrés – modification DNS nécessaire
 
@@ -747,7 +747,7 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status,Selector1CNAME,Selector
       (rdapRegistrar ? '<p>' + t("h_rdap_found")(esc(rdapRegistrar)) + '</p>' : "") +
       '<p class="muted">' + t("h_lookup") + ' ' +
         '<a href="https://www.whoxy.com/' + encodeURIComponent(d) + '" target="_blank" rel="noopener">whoxy.com ↗</a>' +
-        (isBe ? ' · <a href="https://www.dnsbelgium.be/en/whois" target="_blank" rel="noopener">' + t("h_dnsbe") + ' ↗</a>'
+        (isBe ? ' · <a href="https://www.dnsbelgium.be/en/whois/info/' + encodeURIComponent(d) + '/details" target="_blank" rel="noopener">' + t("h_dnsbe") + ' ↗</a>'
               : ' · <a href="https://lookup.icann.org/en/lookup?name=' + encodeURIComponent(d) + '" target="_blank" rel="noopener">ICANN Lookup ↗</a>') +
       '</p>';
 
