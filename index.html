@@ -283,7 +283,7 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
       n_othermx: "MX records of another provider are present alongside M365. Not the cause of this issue, but mail could end up there. Ask whether they're still used.",
       n_spf: n => "SPF has " + n + " top-level lookups. Nested includes count too and the limit is 10. Verify the total on mxtoolbox.com (SPF Record Lookup); more than 10 gives <code>permerror</code>.",
       n_sel2: "selector1 exists but selector2 is missing. Microsoft rotates between both keys, so DKIM will fail after the next rotation. Add selector2 as well.",
-      n_published: "DKIM and DMARC are already published. If mail still fails, enable DKIM (step 6) and check the error code.",
+      n_published: "DKIM (both selectors) and DMARC are already published. You can go straight to step 6 to enable DKIM in the tenant.", jump6: "Records OK – go to step 6 →",
       dk_none: "No Selector1CNAME/Selector2CNAME found in the pasted text.",
       dk_exists: "That's the \"already exists\" error from the old command: the config exists, which is fine. Copy the command above again (it handles this) and paste its output.",
       dk_mismatch: (d, s) => "These values don't seem to belong to <strong>" + d + "</strong> (" + s + "). Wrong tenant or wrong domain?",
@@ -421,7 +421,7 @@ Kind regards,
       n_othermx: "Naast M365 staan er MX-records van een andere provider. Niet de oorzaak van dit probleem, maar mail kan daar terechtkomen. Vraag of die nog gebruikt worden.",
       n_spf: n => "SPF heeft " + n + " lookups op het hoogste niveau. Geneste includes tellen ook mee en de limiet is 10. Controleer het totaal op mxtoolbox.com (SPF Record Lookup); boven 10 geeft <code>permerror</code>.",
       n_sel2: "selector1 bestaat, maar selector2 ontbreekt. Microsoft wisselt tussen beide sleutels, dus DKIM faalt na de volgende rotatie. Voeg ook selector2 toe.",
-      n_published: "DKIM en DMARC zijn al gepubliceerd. Faalt de mail nog, schakel DKIM in (stap 6) en controleer de foutcode.",
+      n_published: "DKIM (beide selectors) en DMARC zijn al gepubliceerd. Je kan meteen naar stap 6 om DKIM in de tenant in te schakelen.", jump6: "Records in orde – naar stap 6 →",
       dk_none: "Geen Selector1CNAME/Selector2CNAME gevonden in de geplakte tekst.",
       dk_exists: "Dat is de \"already exists\"-fout van het oude commando: de config bestaat al, en dat is prima. Kopieer het commando hierboven opnieuw (dat vangt dit op) en plak de output.",
       dk_mismatch: (d, s) => "Deze waarden lijken niet bij <strong>" + d + "</strong> te horen (" + s + "). Verkeerde tenant of verkeerd domein?",
@@ -559,7 +559,7 @@ Met vriendelijke groeten,
       n_othermx: "Des enregistrements MX d'un autre fournisseur sont présents à côté de M365. Ce n'est pas la cause du problème, mais des e-mails pourraient y arriver. Demandez s'ils sont encore utilisés.",
       n_spf: n => "Le SPF contient " + n + " lookups au premier niveau. Les includes imbriqués comptent aussi et la limite est de 10. Vérifiez le total sur mxtoolbox.com (SPF Record Lookup) ; plus de 10 donne <code>permerror</code>.",
       n_sel2: "selector1 existe mais selector2 est manquant. Microsoft alterne entre les deux clés : DKIM échouera après la prochaine rotation. Ajoutez aussi selector2.",
-      n_published: "DKIM et DMARC sont déjà publiés. Si les e-mails échouent encore, activez DKIM (étape 6) et vérifiez le code d'erreur.",
+      n_published: "DKIM (les deux sélecteurs) et DMARC sont déjà publiés. Vous pouvez passer directement à l'étape 6 pour activer DKIM dans le tenant.", jump6: "Enregistrements OK – aller à l'étape 6 →",
       dk_none: "Aucun Selector1CNAME/Selector2CNAME trouvé dans le texte collé.",
       dk_exists: "C'est l'erreur « already exists » de l'ancienne commande : la configuration existe déjà, ce qui est correct. Copiez à nouveau la commande ci-dessus (elle gère ce cas) et collez son résultat.",
       dk_mismatch: (d, s) => "Ces valeurs ne semblent pas correspondre à <strong>" + d + "</strong> (" + s + "). Mauvais tenant ou mauvais domaine ?",
@@ -680,7 +680,7 @@ Cordialement,
     document.querySelectorAll(".copy").forEach(b => b.textContent = t("copy"));
     $("prev").textContent = t("prev"); $("next").textContent = t("next");
     $("tsTable").innerHTML = t("ts").map((r, i) => "<tr>" + r.map(c => i ? "<td>" + c + "</td>" : "<th>" + c + "</th>").join("") + "</tr>").join("");
-    if (dns.done) { $("dnsCheck").innerHTML = renderDnsTable(); if ($("dnsRecheck").innerHTML) $("dnsRecheck").innerHTML = renderDnsTable(); }
+    if (dns.done) { $("dnsCheck").innerHTML = renderDnsTable(true); if ($("dnsRecheck").innerHTML) $("dnsRecheck").innerHTML = renderDnsTable(false); }
     renderAll(); refreshNav();
   }
   $("langSeg").addEventListener("click", e => {
@@ -773,7 +773,7 @@ Cordialement,
     rdapRegistrar = reg || "";
     if (!$("dnsprov").dataset.touched) $("dnsprov").value = guessHost(dns.ns);
     if (!$("registrar").dataset.touched && rdapRegistrar) $("registrar").value = rdapRegistrar;
-    target.innerHTML = renderDnsTable();
+    target.innerHTML = renderDnsTable(target.id === "dnsCheck");
     renderAll(); refreshNav();
   }
 
@@ -781,7 +781,7 @@ Cordialement,
     return spf.split(/\s+/).filter(x => /^[+\-~?]?(include:|a$|a:|a\/|mx$|mx:|mx\/|exists:|redirect=|ptr)/i.test(x)).length;
   }
 
-  function renderDnsTable() {
+  function renderDnsTable(withJump) {
     const spf = dns.spf, outlook = spf && /include:spf\.protection\.outlook\.com/i.test(spf);
     const lookups = spf ? spfLookups(spf) : 0;
     const m365 = dns.mx.some(m => /mail\.protection\.outlook\.com/i.test(m));
@@ -799,7 +799,8 @@ Cordialement,
     else if (otherMx.length) h += '<div class="note warn">' + t("n_othermx") + '</div>';
     if (spf && lookups > 6) h += '<div class="note warn">' + t("n_spf")(lookups) + '</div>';
     if (dns.dkim1 && !dns.dkim2) h += '<div class="note warn">' + t("n_sel2") + '</div>';
-    if (dns.dmarc && dns.dkim1 && dns.dkim2) h += '<div class="note ok">' + t("n_published") + '</div>';
+    if (dns.dmarc && dns.dkim1 && dns.dkim2) h += '<div class="note ok">' + t("n_published") +
+      (withJump ? '<div style="margin-top:10px"><button class="next jump6" data-action="jump6" style="border:0;border-radius:6px;padding:8px 16px;font:inherit;cursor:pointer;background:var(--accent);color:#fff">' + t("jump6") + '</button></div>' : "") + '</div>';
     return h;
   }
 
@@ -967,6 +968,12 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
     const b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.go) { show(+b.dataset.go); return; }
+    if (b.dataset.action === "jump6") {
+      if (!dkimOk()) $("dkim").value = "Selector1CNAME : " + dns.dkim1 + "\nSelector2CNAME : " + dns.dkim2;
+      selfDns = false; renderAll();
+      show(dkimOk() ? 6 : 3);   // DNS values don't match the domain: show the warning in step 3
+      return;
+    }
     let txt = null;
     if (b.classList.contains("copy")) txt = b.previousElementSibling.textContent;
     else if (b.dataset.c !== undefined) txt = b.dataset.c;
