@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DKIM/DMARC Helper</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M32%203%208%2012v18c0%2015%2010.5%2026.5%2024%2031%2013.5-4.5%2024-16%2024-31V12Z%22%20fill%3D%22%231f5fbf%22/%3E%3Crect%20x%3D%2217%22%20y%3D%2221%22%20width%3D%2230%22%20height%3D%2221%22%20rx%3D%223%22%20fill%3D%22%23fff%22/%3E%3Cpath%20d%3D%22m18.5%2023%2013.5%2010%2013.5-10%22%20fill%3D%22none%22%20stroke%3D%22%231f5fbf%22%20stroke-width%3D%223%22%20stroke-linejoin%3D%22round%22/%3E%3Ccircle%20cx%3D%2245%22%20cy%3D%2244%22%20r%3D%229%22%20fill%3D%22%232ea44f%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222.5%22/%3E%3Cpath%20d%3D%22m40.8%2044%203%203%205.4-5.6%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E">
 <script>
   // Apply saved theme before paint (no flash)
   (function () {
@@ -82,7 +83,7 @@
   .note.warn { background: var(--warn-soft); color: var(--warn); }
   .note.ok { background: var(--ok-soft); color: var(--ok); }
   .note.info { background: var(--accent-soft); color: var(--accent); }
-  .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .pill { display: inline-block; white-space: nowrap; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; }
   .pill.ok { background: var(--ok-soft); color: var(--ok); }
   .pill.bad { background: var(--bad-soft); color: var(--bad); }
   .pill.warn { background: var(--warn-soft); color: var(--warn); }
@@ -166,7 +167,7 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
     <p data-t="s4_intro"></p>
     <table id="recTable"></table>
     <div id="spfNote"></div>
-    <p class="muted" data-t="s4_dmarc"></p>
+    <p class="muted" data-t="s4_dmarc" id="s4dmarc"></p>
     <div id="s4links" class="linkrow"></div>
   </section>
 
@@ -187,6 +188,7 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
     <p class="muted" data-t="s5_self"></p>
     <h3 data-t="s5_mail_title"></h3>
     <p data-t="s5_mail_intro"></p>
+    <div id="mailNone"></div>
     <div class="block light"><pre class="mail" id="mailReq"></pre><button class="copy"></button></div>
   </section>
 
@@ -256,7 +258,7 @@ Selector2CNAME : selector2-customer-com._domainkey.customer.a-v1.dkim.mail.micro
       s3_title: "3. Get the DKIM values", s3_intro: "DKIM values depend on the tenant and can't be derived from the domain name. This command creates the DKIM config if needed (no error if it already exists) and shows the values. Paste the output below.",
       dkim_label: "Output of the command above",
       s3_wrongtenant: "\"couldn't be found\" or \"Invalid domain name\" means you're connected to the wrong tenant (see 2.2).",
-      s4_title: "4. DNS records", s4_intro: "These records need to be added to the DNS zone.",
+      s4_title: "4. DNS records", s4_intro: "The records this tenant needs, compared with what's currently in public DNS.",
       s4_dmarc: "Always start DMARC at <code>p=none</code>, so other services sending on behalf of the domain (website, mailing tool) aren't blocked.",
       s5_title: "5. DNS host & email to the customer",
       dnshost_label: "DNS host (where the records are changed)", registrar_label: "Registrar (where the domain is registered)",
@@ -311,11 +313,11 @@ The DNS of your domain is not managed by us but hosted at ${host}${reg && reg !=
 
 Hello,
 
-Please add the following records to the DNS zone of ${d}:
+Please add (or update, if they already exist) the following records in the DNS zone of ${d}:
 
 ${recs}
 
-Existing records can remain unchanged.
+Other existing records can remain unchanged.
 
 Thank you in advance.
 
@@ -378,6 +380,13 @@ Kind regards,
 - DKIM CNAME records and DMARC record added in DNS
 - DKIM enabled in M365 and verified
 - Customer informed`,
+      r_status: "Status", r_now: "Now",
+      st_ok: "Present ✓", st_keep: "Exists – keep", st_missing: "To add", st_diff: "Different – replace", st_unknown: "Not checked",
+      all_ok: "All records are already correct in public DNS. No DNS changes needed: go to step 6 to enable DKIM.",
+      diff_note: "A record in public DNS has a different value than this tenant needs (wrong tenant, old provider or typo). It must be replaced with the value shown.",
+      dmarc_keep: "An existing DMARC record was found and is kept as is. Don't replace it with p=none.",
+      mail_none: "No DNS changes are needed, so no email to the DNS host is required. Go to step 6.",
+      fast_note: "<strong>Records found in public DNS</strong>, steps 2–5 skipped. Whether they belong to this tenant is checked in 6.2: the status must be <code>Valid</code>. <code>CnameMissing</code> or an error? Go through step 3 to compare with the tenant's values.",
       host_fallback: "your DNS host", ex_keep: "Existing records can remain unchanged."
     },
 
@@ -394,7 +403,7 @@ Kind regards,
       s3_title: "3. DKIM-waarden ophalen", s3_intro: "De DKIM-waarden hangen af van de tenant en zijn niet af te leiden uit de domeinnaam. Dit commando maakt de DKIM-config aan indien nodig (geen fout als ze al bestaat) en toont de waarden. Plak de output hieronder.",
       dkim_label: "Output van het commando hierboven",
       s3_wrongtenant: "\"couldn't be found\" of \"Invalid domain name\" betekent dat je met de verkeerde tenant verbonden bent (zie 2.2).",
-      s4_title: "4. DNS-records", s4_intro: "Deze records moeten toegevoegd worden in de DNS-zone.",
+      s4_title: "4. DNS-records", s4_intro: "De records die deze tenant nodig heeft, vergeleken met wat nu in de publieke DNS staat.",
       s4_dmarc: "Start DMARC altijd met <code>p=none</code>, zodat andere diensten die namens het domein mailen (website, mailingtool) niet geblokkeerd worden.",
       s5_title: "5. DNS-beheerder & mail naar de klant",
       dnshost_label: "DNS-host (waar de records aangepast worden)", registrar_label: "Registrar (waar het domein geregistreerd is)",
@@ -449,11 +458,11 @@ De DNS van uw domein wordt niet door ons beheerd, maar staat bij ${host}${reg &&
 
 Beste,
 
-Graag volgende records toevoegen in de DNS-zone van ${d}:
+Graag volgende records toevoegen (of aanpassen als ze al bestaan) in de DNS-zone van ${d}:
 
 ${recs}
 
-Bestaande records mogen ongewijzigd blijven.
+Andere bestaande records mogen ongewijzigd blijven.
 
 Alvast bedankt.
 
@@ -516,6 +525,13 @@ Met vriendelijke groeten,
 - DKIM-CNAME-records en DMARC-record aangemaakt in DNS
 - DKIM ingeschakeld in M365 en gecontroleerd
 - Klant op de hoogte gebracht`,
+      r_status: "Status", r_now: "Nu",
+      st_ok: "Aanwezig ✓", st_keep: "Bestaat – behouden", st_missing: "Aan te maken", st_diff: "Afwijkend – vervangen", st_unknown: "Niet gecontroleerd",
+      all_ok: "Alle records staan al correct in de publieke DNS. Geen DNS-aanpassing nodig: ga naar stap 6 om DKIM in te schakelen.",
+      diff_note: "Een record in de publieke DNS heeft een andere waarde dan deze tenant nodig heeft (verkeerde tenant, oude provider of tikfout). Het moet vervangen worden door de getoonde waarde.",
+      dmarc_keep: "Er bestaat al een DMARC-record. Dat blijft ongewijzigd; vervang het niet door p=none.",
+      mail_none: "Er zijn geen DNS-aanpassingen nodig, dus er hoeft geen mail naar de DNS-beheerder. Ga naar stap 6.",
+      fast_note: "<strong>Records gevonden in de publieke DNS</strong>, stap 2–5 overgeslagen. Of ze bij deze tenant horen, wordt gecontroleerd in 6.2: de status moet <code>Valid</code> zijn. <code>CnameMissing</code> of een fout? Doorloop dan stap 3 om te vergelijken met de waarden van de tenant.",
       host_fallback: "uw DNS-beheerder", ex_keep: "Bestaande records mogen ongewijzigd blijven."
     },
 
@@ -532,7 +548,7 @@ Met vriendelijke groeten,
       s3_title: "3. Récupérer les valeurs DKIM", s3_intro: "Les valeurs DKIM dépendent du tenant et ne peuvent pas être déduites du nom de domaine. Cette commande crée la configuration DKIM si nécessaire (pas d'erreur si elle existe déjà) et affiche les valeurs. Collez le résultat ci-dessous.",
       dkim_label: "Résultat de la commande ci-dessus",
       s3_wrongtenant: "« couldn't be found » ou « Invalid domain name » signifie que vous êtes connecté au mauvais tenant (voir 2.2).",
-      s4_title: "4. Enregistrements DNS", s4_intro: "Ces enregistrements doivent être ajoutés à la zone DNS.",
+      s4_title: "4. Enregistrements DNS", s4_intro: "Les enregistrements requis par ce tenant, comparés à ce qui figure actuellement dans le DNS public.",
       s4_dmarc: "Commencez toujours DMARC avec <code>p=none</code>, afin que les autres services envoyant au nom du domaine (site web, outil d'e-mailing) ne soient pas bloqués.",
       s5_title: "5. Hébergeur DNS & e-mail au client",
       dnshost_label: "Hébergeur DNS (où les enregistrements sont modifiés)", registrar_label: "Registrar (où le domaine est enregistré)",
@@ -587,11 +603,11 @@ Le DNS de votre domaine n'est pas géré par nos soins, mais hébergé chez ${ho
 
 Bonjour,
 
-Merci d'ajouter les enregistrements suivants dans la zone DNS de ${d} :
+Merci d'ajouter (ou de modifier s'ils existent déjà) les enregistrements suivants dans la zone DNS de ${d} :
 
 ${recs}
 
-Les enregistrements existants peuvent rester inchangés.
+Les autres enregistrements existants peuvent rester inchangés.
 
 Merci d'avance.
 
@@ -654,6 +670,13 @@ Cordialement,
 - Enregistrements CNAME DKIM et DMARC ajoutés dans le DNS
 - DKIM activé dans M365 et vérifié
 - Client informé`,
+      r_status: "Statut", r_now: "Actuel",
+      st_ok: "Présent ✓", st_keep: "Existe – conserver", st_missing: "À ajouter", st_diff: "Différent – remplacer", st_unknown: "Non vérifié",
+      all_ok: "Tous les enregistrements sont déjà corrects dans le DNS public. Aucune modification DNS nécessaire : passez à l'étape 6 pour activer DKIM.",
+      diff_note: "Un enregistrement du DNS public a une autre valeur que celle requise par ce tenant (mauvais tenant, ancien fournisseur ou faute de frappe). Il doit être remplacé par la valeur affichée.",
+      dmarc_keep: "Un enregistrement DMARC existe déjà et est conservé tel quel. Ne le remplacez pas par p=none.",
+      mail_none: "Aucune modification DNS n'est nécessaire, donc aucun e-mail à l'hébergeur DNS. Passez à l'étape 6.",
+      fast_note: "<strong>Enregistrements trouvés dans le DNS public</strong>, étapes 2 à 5 ignorées. Leur correspondance avec ce tenant est vérifiée en 6.2 : le statut doit être <code>Valid</code>. <code>CnameMissing</code> ou une erreur ? Passez par l'étape 3 pour comparer avec les valeurs du tenant.",
       host_fallback: "votre hébergeur DNS", ex_keep: "Les enregistrements existants peuvent rester inchangés."
     }
   };
@@ -691,6 +714,7 @@ Cordialement,
   // ======================= HELPERS =======================
   let cur = 1;
   let selfDns = false;
+  let fastTrack = false;   // jumped from step 1 to 6 because the records are already public
   let dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, dkim2: null, done: false };
   let rdapRegistrar = "";
   let checkToken = 0;
@@ -843,17 +867,35 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status,Selector1CNAME,Selector
       '<div class="note ok">' + t("dk_ok")(esc(k.status)) + '</div>';
 
     // Step 4
+    // Compare what the tenant needs with what is in public DNS
     const spfMissing = dns.done && !dns.spf;
+    const norm = v => String(v || "").toLowerCase().replace(/\.$/, "");
     const fq = v => ok && !v.endsWith(".") ? v + "." : v;   // trailing dot = fully qualified target
-    const recs = [["CNAME", "selector1._domainkey", fq(s1)], ["CNAME", "selector2._domainkey", fq(s2)], ["TXT", "_dmarc", "v=DMARC1; p=none"]];
-    if (spfMissing) recs.push(["TXT", "@", "v=spf1 include:spf.protection.outlook.com -all"]);
-    $("recTable").innerHTML = '<tr><th>' + t("r_type") + '</th><th>' + t("r_name") + '</th><th>' + t("r_value") + '</th></tr>' +
-      recs.map(r => '<tr><td>' + r[0] + '</td><td><code>' + esc(r[1]) + '</code><button data-c="' + esc(r[1]) + '">' + t("copySmall") + '</button></td><td><code>' + esc(r[2]) + '</code><button data-c="' + esc(r[2]) + '">' + t("copySmall") + '</button></td></tr>').join("");
-    $("spfNote").innerHTML = (ok ? '<p class="muted">' + t("dot_hint") + '</p>' : "") + (
-      !ok ? '<div class="note warn">' + t("ph_warn") + '</div>' :
-      dns.done && dns.spf && !/include:spf\.protection\.outlook\.com/i.test(dns.spf) ? '<div class="note warn">' + t("spf_noinc") + '</div>' :
-      spfMissing ? '<div class="note info">' + t("spf_added") + '</div>' : "");
-    const recText = recs.map(r => t("r_type") + ": " + r[0] + "\n" + t("r_name") + ": " + r[1] + "\n" + t("r_value") + ": " + r[2]).join("\n\n");
+    const state = (want, current) => !dns.done ? "unknown" : !current ? "missing" : norm(current) === norm(want) ? "ok" : "diff";
+    const recs = [
+      { type: "CNAME", name: "selector1._domainkey", value: fq(s1), cur: dns.dkim1, state: state(s1, dns.dkim1) },
+      { type: "CNAME", name: "selector2._domainkey", value: fq(s2), cur: dns.dkim2, state: state(s2, dns.dkim2) }
+    ];
+    if (dns.dmarc) recs.push({ type: "TXT", name: "_dmarc", value: dns.dmarc, cur: dns.dmarc, state: "keep" });
+    else recs.push({ type: "TXT", name: "_dmarc", value: "v=DMARC1; p=none", cur: null, state: dns.done ? "missing" : "unknown" });
+    if (spfMissing) recs.push({ type: "TXT", name: "@", value: "v=spf1 include:spf.protection.outlook.com -all", cur: null, state: "missing" });
+    const pillFor = { ok: "ok", keep: "ok", missing: "warn", diff: "bad", unknown: "muted" };
+    const cp = v => '<button data-c="' + esc(v) + '">' + t("copySmall") + '</button>';
+    $("recTable").innerHTML = '<tr><th>' + t("r_type") + '</th><th>' + t("r_name") + '</th><th>' + t("r_value") + '</th><th>' + t("r_status") + '</th></tr>' +
+      recs.map(r => '<tr><td>' + r.type + '</td><td><code>' + esc(r.name) + '</code>' + cp(r.name) + '</td><td><code>' + esc(r.value) + '</code>' +
+        (r.state === "keep" || r.state === "ok" ? "" : cp(r.value)) +
+        (r.state === "diff" ? '<div class="muted" style="margin-top:4px">' + t("r_now") + ': <code>' + esc(r.cur) + '</code></div>' : "") +
+        '</td><td><span class="pill ' + pillFor[r.state] + '">' + t("st_" + r.state) + '</span></td></tr>').join("");
+    const todo = recs.filter(r => r.state === "missing" || r.state === "diff" || r.state === "unknown");
+    let notes = !ok ? '<div class="note warn">' + t("ph_warn") + '</div>' : todo.some(r => r.type === "CNAME") ? '<p class="muted">' + t("dot_hint") + '</p>' : "";
+    if (ok && dns.done && !todo.length) notes += '<div class="note ok">' + t("all_ok") + '</div>';
+    if (recs.some(r => r.state === "diff")) notes += '<div class="note warn">' + t("diff_note") + '</div>';
+    if (dns.dmarc) notes += '<div class="note info">' + t("dmarc_keep") + '</div>';
+    if (dns.done && dns.spf && !/include:spf\.protection\.outlook\.com/i.test(dns.spf)) notes += '<div class="note warn">' + t("spf_noinc") + '</div>';
+    else if (spfMissing) notes += '<div class="note info">' + t("spf_added") + '</div>';
+    $("spfNote").innerHTML = notes;
+    $("s4dmarc").classList.toggle("hidden", !!dns.dmarc);
+    const recText = todo.map(r => t("r_type") + ": " + r.type + "\n" + t("r_name") + ": " + r.name + "\n" + t("r_value") + ": " + r.value).join("\n\n");
 
     // Step 5: DNS host vs registrar
     const guessed = guessHost(dns.ns);
@@ -878,6 +920,9 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status,Selector1CNAME,Selector
             : '<a class="linkbtn" href="https://lookup.icann.org/en/lookup?name=' + encodeURIComponent(d) + '" target="_blank" rel="noopener">ICANN Lookup ↗</a>');
 
     $("mailReq").textContent = t("mail_req")(d, host, reg, recText);
+    const noChanges = ok && dns.done && !todo.length;
+    $("mailReq").parentElement.classList.toggle("hidden", noChanges);
+    $("mailNone").innerHTML = noChanges ? '<div class="note ok">' + t("mail_none") + '</div>' : "";
 
     // Step 6
     $("cmd6a").textContent =
@@ -894,19 +939,21 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
     $("mailDone").textContent = selfDns ? t("mail_done_self")(d) : t("mail_done")(d, host);
     $("timeEntry").textContent = selfDns ? t("time_self")(d) : t("time")(d, host);
     $("s6h").textContent = selfDns ? t("s6_title_self") : t("s6_title");
-    $("selfNote").innerHTML = selfDns ? '<div class="note info">' + t("self_note") + '</div>' : "";
+    $("selfNote").innerHTML = selfDns ? '<div class="note info">' + t("self_note") + '</div>' :
+      fastTrack ? '<div class="note info">' + t("fast_note") + '</div>' : "";
   }
 
   // ======================= WIZARD =======================
   function canGo(n) {
     if (n <= 1) return true;
     if (!validDomain(domain())) return false;
+    if (n === 6 && fastTrack) return true;
     if (n >= 4 && !dkimOk()) return false;
     return n <= 6;
   }
   function renderStepper() {
     $("stepper").innerHTML = t("steps").map((name, i) => {
-      const n = i + 1, cls = n === cur ? "on" : (selfDns && n === 5) ? "skipped" : n < cur ? "done" : "";
+      const n = i + 1, cls = n === cur ? "on" : ((selfDns && n === 5) || (fastTrack && n > 1 && n < 6)) ? "skipped" : n < cur ? "done" : "";
       return '<button class="' + cls + '" data-go="' + n + '"' + (canGo(n) ? "" : " disabled") + '><b>' + t("step") + " " + n + '</b>' + name + '</button>';
     }).join("");
   }
@@ -926,6 +973,7 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
   function show(n) {
     if (!canGo(n)) return;
     if (n === 5 || n < 4) selfDns = false;
+    if (n < 6) fastTrack = false;
     cur = n;
     renderAll();
     document.querySelectorAll("section.step").forEach(s => s.classList.toggle("hidden", +s.dataset.step !== cur));
@@ -936,7 +984,7 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
   let dnsTimer;
   $("domain").addEventListener("input", () => {
     dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, dkim2: null, done: false };
-    rdapRegistrar = "";
+    rdapRegistrar = ""; fastTrack = false;
     $("dnsCheck").innerHTML = ""; $("dnsRecheck").innerHTML = "";
     ["dnsprov", "registrar"].forEach(id => { if (!$(id).dataset.touched) $(id).value = ""; });
     clearTimeout(dnsTimer);
@@ -949,12 +997,12 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
     $(id).dataset.touched = $(id).value ? "1" : ""; renderAll();
   }));
   $("recheck").addEventListener("click", () => runDnsCheck($("dnsRecheck")));
-  $("prev").addEventListener("click", () => show(cur === 6 && selfDns ? 4 : cur - 1));
+  $("prev").addEventListener("click", () => show(cur === 6 && fastTrack ? 1 : cur === 6 && selfDns ? 4 : cur - 1));
   $("selfDns").addEventListener("click", () => { selfDns = true; show(6); });
   function resetAll() {
     ["domain", "dkim", "dnsprov", "registrar"].forEach(id => { $(id).value = ""; delete $(id).dataset.touched; });
     dns = { ns: [], mx: [], spf: null, dmarc: null, dkim1: null, dkim2: null, done: false };
-    rdapRegistrar = ""; selfDns = false; checkToken++;
+    rdapRegistrar = ""; selfDns = false; fastTrack = false; checkToken++;
     ["dnsCheck", "dnsRecheck", "dkimState", "selfNote"].forEach(id => { $(id).innerHTML = ""; });
     show(1);
     $("domain").focus();
@@ -969,9 +1017,8 @@ Get-DkimSigningConfig -Identity ${d} | fl Enabled,Status`;
     if (!b) return;
     if (b.dataset.go) { show(+b.dataset.go); return; }
     if (b.dataset.action === "jump6") {
-      if (!dkimOk()) $("dkim").value = "Selector1CNAME : " + dns.dkim1 + "\nSelector2CNAME : " + dns.dkim2;
-      selfDns = false; renderAll();
-      show(dkimOk() ? 6 : 3);   // DNS values don't match the domain: show the warning in step 3
+      selfDns = false; fastTrack = true;   // nothing is filled in: tenant values are verified in 6.2
+      show(6);
       return;
     }
     let txt = null;
